@@ -44,6 +44,7 @@ public struct MacPairingView: View {
                             RoundedRectangle(cornerRadius: MacTheme.Radius.md, style: .continuous)
                                 .stroke(MacTheme.Colors.hairline, lineWidth: 1)
                         )
+                        .accessibilityLabel("Pairing QR Code. Scan with Handshake app on your iPhone.")
                 }
 
                 // Expiration timer
@@ -55,6 +56,8 @@ public struct MacPairingView: View {
                         .monospacedDigit()
                 }
                 .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Invitation expires in \(timeRemaining) seconds")
             }
 
             // SAS Verification Fingerprint
@@ -77,6 +80,8 @@ public struct MacPairingView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Short Authentication String verification code: \(invitation.verificationCode). Confirm this matches your iPhone screen.")
 
             // Security note
             HStack(spacing: MacTheme.Spacing.xs) {

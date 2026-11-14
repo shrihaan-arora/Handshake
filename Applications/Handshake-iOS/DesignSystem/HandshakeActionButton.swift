@@ -73,7 +73,11 @@ public struct HandshakeActionButton: View {
         }
         .buttonStyle(TouchTargetButtonStyle())
         .disabled(!isEnabled)
-        .opacity(isEnabled ? 1.0 : 0.5)
+        .opacity(isEnabled ? 1.0 : 0.45)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(title))
+        .accessibilityHint(Text(subtitle ?? ""))
+        .accessibilityAddTraits(.isButton)
     }
 
     private var iconColor: Color {
@@ -113,10 +117,12 @@ public struct HandshakeActionButton: View {
 }
 
 private struct TouchTargetButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(HandshakeTheme.Animation.quick, value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1.0)
+            .animation(reduceMotion ? nil : HandshakeTheme.Animation.quick, value: configuration.isPressed)
     }
 }
 

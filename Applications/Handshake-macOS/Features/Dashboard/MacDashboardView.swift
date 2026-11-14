@@ -41,12 +41,15 @@ public struct MacDashboardView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        Toggle("", isOn: Binding(
+                        Toggle("Mac Availability", isOn: Binding(
                             get: { viewModel.isAvailableForControl },
                             set: { _ in viewModel.toggleAvailability() }
                         ))
                         .toggleStyle(.switch)
                         .labelsHidden()
+                        .accessibilityLabel("Mac Availability for Local Control")
+                        .accessibilityValue(viewModel.isAvailableForControl ? "Available" : "Inactive")
+                        .accessibilityHint("Toggles whether this Mac listens for commands from paired devices")
                     }
                     .padding(.horizontal, MacTheme.Spacing.md)
                     .padding(.vertical, MacTheme.Spacing.xs)
@@ -67,6 +70,8 @@ public struct MacDashboardView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Local Network Transport: TLS 1.3 listener on port 5894, Bonjour service handshake")
 
                         Spacer()
 
@@ -77,6 +82,8 @@ public struct MacDashboardView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Bluetooth Low Energy: Peripheral advertisement ready")
                     }
                 }
 

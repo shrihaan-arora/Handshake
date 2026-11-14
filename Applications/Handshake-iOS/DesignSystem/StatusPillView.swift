@@ -32,6 +32,8 @@ public struct StatusPillView: View {
             Capsule()
                 .stroke(HandshakeTheme.Colors.hairline, lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text("Connection status: \(state.statusTitle)"))
     }
 
     private var indicatorColor: Color {

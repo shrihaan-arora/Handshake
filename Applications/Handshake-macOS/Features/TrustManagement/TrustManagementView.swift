@@ -28,6 +28,8 @@ public struct TrustManagementView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .help("Initiate out-of-band QR pairing with an iPhone")
+                .accessibilityLabel("Pair new iPhone")
             }
 
             if viewModel.trustedDevices.isEmpty {
@@ -47,6 +49,8 @@ public struct TrustManagementView: View {
                     }
                     .padding(.vertical, MacTheme.Spacing.xs)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("No Paired Devices. Pair an iPhone to enable secure local control.")
             } else {
                 VStack(spacing: MacTheme.Spacing.xs) {
                     ForEach(Array(viewModel.trustedDevices.enumerated()), id: \.element.id) { index, record in
@@ -96,9 +100,13 @@ public struct TrustManagementView: View {
                                     .buttonStyle(.bordered)
                                     .controlSize(.small)
                                     .tint(.red)
+                                    .help("Revoke trust for \(record.peer.displayName)")
+                                    .accessibilityLabel("Revoke trust for \(record.peer.displayName)")
                                 }
                             }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(record.peer.displayName), \(record.peer.modelIdentifier), status: \(record.isRevoked ? "Revoked" : "Trusted"), fingerprint \(record.peer.shortFingerprint)")
                     }
                 }
             }

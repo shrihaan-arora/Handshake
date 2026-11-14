@@ -22,6 +22,8 @@ public struct SecurityShieldBadge: View {
         .padding(.horizontal, HandshakeTheme.Spacing.xs + 2)
         .padding(.vertical, 3)
         .background(backgroundColor, in: Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text("Security status: \(badgeTitle)"))
     }
 
     private var isVerified: Bool {

@@ -42,6 +42,8 @@ public struct iPhoneDashboardView: View {
                                             .stroke(HandshakeTheme.Colors.hairline, lineWidth: 1)
                                     )
                             }
+                            .accessibilityLabel("Security Posture Audit")
+                            .accessibilityHint("Opens detailed cryptographic and transport security assessment")
                         }
 
                         // Connection Pill
@@ -81,6 +83,8 @@ public struct iPhoneDashboardView: View {
                                     .frame(width: 10, height: 10)
                             }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Paired device: \(mac.displayName), \(mac.modelIdentifier), fingerprint \(mac.shortFingerprint)")
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     } else {
                         HandshakeCard {
@@ -104,6 +108,8 @@ public struct iPhoneDashboardView: View {
                                 Spacer()
                             }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("No paired MacBook. Pair with your Mac to enable direct local control.")
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     }
 

@@ -72,6 +72,7 @@ public struct MenuBarView: View {
             }
             .padding(.horizontal, MacTheme.Spacing.md)
             .padding(.vertical, 4)
+            .keyboardShortcut("o", modifiers: .command)
 
             Divider()
 
@@ -80,6 +81,7 @@ public struct MenuBarView: View {
             }
             .padding(.horizontal, MacTheme.Spacing.md)
             .padding(.vertical, 4)
+            .keyboardShortcut("q", modifiers: .command)
         }
         .padding(.vertical, 4)
         .frame(width: 260)
