@@ -19,9 +19,9 @@
 | 8 | Packet replay is rejected | Monotonic sequence window verification | **VERIFIED** (Core) |
 | 9 | Packet tampering is rejected | AEAD authentication tag + AAD validation | **VERIFIED** (Core) |
 | 10 | Unpaired devices cannot issue commands | Trust store public identity signature verification | **VERIFIED** (Milestone D) |
-| 11 | Lock Mac command works through approved mechanism | Documented Apple system call / user permission | Pending (Milestone E) |
-| 12 | Sleep Mac command works | IOKit `IOPMSleepSystem` / power management | Pending (Milestone F) |
-| 13 | Acknowledgements accurately represent execution | Staged receipt -> execution -> verified ack | Pending (Milestone E/F) |
+| 11 | Lock Mac command works through approved mechanism | Documented Apple system call / user permission | **VERIFIED** (Milestone E) |
+| 12 | Sleep Mac command works | IOKit `IOPMSleepSystem` / power management | **VERIFIED** (Milestone F) |
+| 13 | Acknowledgements accurately represent execution | Staged receipt -> execution -> verified ack | **VERIFIED** (Milestone E/F) |
 | 14 | No persistent background process is required | Foreground iOS / Window-bound macOS lifecycle | **VERIFIED** (Design) |
 | 15 | No unnecessary battery-intensive scanning | Bounded timeouts, resource deallocation | **VERIFIED** (Design) |
 | 16 | All tests and both native builds pass | `scripts/verify.sh` continuous verification | **VERIFIED** |

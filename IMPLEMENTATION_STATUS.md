@@ -18,11 +18,11 @@
 | **QR Code Pairing Protocol** | Protocol | Camera (iOS) / CoreImage (macOS) | Yes | Yes (5 tests) | **Implemented (Milestone C)** |
 | **Wi-Fi Transport (Bonjour)** | Network | `_handshake._tcp` (NWListener/NWConnection) | Yes | Yes | **Implemented (Milestone D)** |
 | **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 / 4-byte framing | Yes | Yes (6 tests) | **Implemented (Milestone D)** |
-| **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Pending (Milestone E) | Pending | In Progress |
-| **Sleep Mac Command Engine** | macOS System | IOKit power management | Pending (Milestone F) | Pending | Queued |
-| **Bluetooth LE Transport** | Network | CoreBluetooth Central/Peripheral | Pending (Milestone G) | Pending | Optional |
-| **iPhone Dashboard UI** | iOS App | iPhone 16e (A18), iOS 17+ | V1 UI Ready | V1 UI Ready | Awaiting Engine |
-| **Mac Companion UI** | macOS App | MacBook Air (M4), macOS 14+ | V1 UI Ready | V1 UI Ready | Awaiting Engine |
+| **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Yes | Yes (SystemEngineTests) | **Implemented (Milestone E)** |
+| **Sleep Mac Command Engine** | macOS System | IOKit power management | Yes | Yes (SystemEngineTests) | **Implemented (Milestone F)** |
+| **Bluetooth LE Transport** | Network | CoreBluetooth Central/Peripheral | Pending (Milestone G) | Pending | In Progress |
+| **iPhone Dashboard UI** | iOS App | iPhone 16e (A18), iOS 17+ | Yes | Yes | **Integrated** |
+| **Mac Companion UI** | macOS App | MacBook Air (M4), macOS 14+ | Yes | Yes | **Integrated** |
 
 ---
 

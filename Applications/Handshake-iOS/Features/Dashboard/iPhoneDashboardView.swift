@@ -185,15 +185,15 @@ public struct iPhoneDashboardView: View {
             .sheet(isPresented: $viewModel.isSecurityAuditPresented) {
                 SecurityAuditView(status: viewModel.securityStatus)
             }
-            .alert("Phase 1 Preview", isPresented: Binding(
-                get: { viewModel.phase1NoticeMessage != nil },
+            .alert(viewModel.alertTitle, isPresented: Binding(
+                get: { viewModel.alertMessage != nil },
                 set: { if !$0 { viewModel.dismissNotice() } }
             )) {
                 Button("OK", role: .cancel) {
                     viewModel.dismissNotice()
                 }
             } message: {
-                if let message = viewModel.phase1NoticeMessage {
+                if let message = viewModel.alertMessage {
                     Text(message)
                 }
             }

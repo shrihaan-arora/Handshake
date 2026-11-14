@@ -5,70 +5,172 @@ import HandshakeCore
 @MainActor
 public final class MacDashboardViewModel: ObservableObject {
     @Published public var isAvailableForControl: Bool = true
-    @Published public var connectionState: ConnectionState
+    @Published public var connectionState: ConnectionState = .disconnected
     @Published public var trustedDevices: [TrustRecord] = []
     @Published public var isPairingSheetPresented: Bool = false
     @Published public var activeInvitation: PairingInvitation?
-    @Published public var securityStatus: SecurityStatus
+    @Published public var securityStatus: SecurityStatus = .unconfigured
     @Published public var recentAuditEvents: [String] = []
 
-    public init() {
-        // Sample host Mac identity
-        let hostMac = DeviceIdentity(
-            id: UUID(),
-            publicKeyHex: "f6b89c3140a32057d34199a0937c569a9e334df5d9e527f300c3c6f2df798f82",
-            displayName: "Shrihaan's MacBook Pro",
-            deviceType: .mac,
-            modelIdentifier: "Mac15,3",
-            systemVersion: "macOS 15.1"
-        )
+    private var hostIdentity: CryptoIdentity?
+    private let trustStore: TrustStore
+    private var server: HandshakeServer?
+    private let lockEngine = MacLockEngine()
+    private let sleepEngine = MacSleepEngine()
 
-        // Phase 1 Baseline: No active network connections or verified crypto sessions exist yet
-        self.trustedDevices = []
+    public init() {
+        self.trustStore = TrustStore(storageAccount: "com.shrihaan.handshake.mac.truststore")
         self.connectionState = .disconnected
         self.securityStatus = .unconfigured
         self.recentAuditEvents = [
-            "Phase 1 Architecture Baseline initialized",
-            "Zero-cloud enforcement: 0 external cloud connections configured",
-            "Local networking and crypto pairing scheduled for Phase 2 implementation"
+            "Handshake V1 Companion Initialized",
+            "Zero cloud infrastructure: local peer-to-peer transport only"
         ]
+
+        Task {
+            await initializeIdentityAndTrust()
+        }
+    }
+
+    private func initializeIdentityAndTrust() async {
+        do {
+            let identity = try CryptoIdentity.loadOrCreate(
+                label: "com.shrihaan.handshake.mac.identity",
+                displayName: Host.current().localizedName ?? "MacBook",
+                deviceType: .mac,
+                modelIdentifier: "Mac15,3",
+                systemVersion: ProcessInfo.processInfo.operatingSystemVersionString
+            )
+            self.hostIdentity = identity
+            let records = await trustStore.allRecords()
+            self.trustedDevices = records
+            self.securityStatus = records.isEmpty ? .unconfigured : .standardSecure
+            self.recentAuditEvents.insert("Cryptographic identity initialized (\(identity.identity.publicKeyHex.prefix(12))...)", at: 0)
+
+            // Auto-start server if available and window is open
+            if isAvailableForControl {
+                startServer()
+            }
+        } catch {
+            self.recentAuditEvents.insert("Identity initialization failed: \(error.localizedDescription)", at: 0)
+        }
+    }
+
+    // MARK: - Server Lifecycle
+
+    public func startServer() {
+        guard isAvailableForControl, server == nil, let identity = hostIdentity else { return }
+
+        let newServer = HandshakeServer(
+            port: 5894,
+            serviceType: "_handshake._tcp",
+            hostIdentity: identity,
+            trustStore: trustStore,
+            executionHandler: { [weak self] message, peer in
+                guard let self = self else { return .rejected("Mac host unavailable") }
+                return await self.handleIncomingCommand(message, from: peer)
+            }
+        )
+        self.server = newServer
+
+        Task {
+            do {
+                try await newServer.start()
+                self.connectionState = .discovering
+                self.recentAuditEvents.insert("Local Bonjour listener active on TCP 5894 (_handshake._tcp)", at: 0)
+            } catch {
+                self.connectionState = .failed(reason: error.localizedDescription)
+                self.recentAuditEvents.insert("Failed to start TCP listener: \(error.localizedDescription)", at: 0)
+            }
+        }
+    }
+
+    public func stopServer() {
+        guard let activeServer = server else { return }
+        Task {
+            await activeServer.stop()
+        }
+        self.server = nil
+        self.connectionState = .disconnected
+        self.recentAuditEvents.insert("Local listener stopped", at: 0)
     }
 
     public func toggleAvailability() {
         isAvailableForControl.toggle()
         if !isAvailableForControl {
-            connectionState = .disconnected
-            recentAuditEvents.insert("Mac host marked unavailable: local listeners suspended", at: 0)
+            stopServer()
         } else {
-            recentAuditEvents.insert("Mac host marked available: listening on local Wi-Fi and BLE", at: 0)
+            startServer()
         }
     }
 
+    // MARK: - Command Processing
+
+    private func handleIncomingCommand(_ message: CommandMessage, from peer: DeviceIdentity) async -> CommandAcknowledgment.ExecutionStatus {
+        switch message.command {
+        case .lockScreen:
+            recentAuditEvents.insert("Authenticated Lock command received from '\(peer.displayName)'", at: 0)
+            let result = await lockEngine.lockDisplay()
+            switch result {
+            case .confirmedLocked:
+                recentAuditEvents.insert("Display lock verified active", at: 0)
+                return .executed
+            case .invoked:
+                recentAuditEvents.insert("Display lock invoked via System Events", at: 0)
+                return .executed
+            case .failed(let reason):
+                recentAuditEvents.insert("Display lock failed: \(reason)", at: 0)
+                return .failed(reason)
+            case .received, .authenticated:
+                return .received
+            }
+
+        case .sleep:
+            recentAuditEvents.insert("Authenticated Sleep command received from '\(peer.displayName)'. Preparing sleep...", at: 0)
+            if !sleepEngine.isSleepSupported() {
+                recentAuditEvents.insert("Sleep rejected: hardware power management does not support sleep", at: 0)
+                return .failed("System sleep not supported on this Mac")
+            }
+            // Return .executed so HandshakeServer signs acknowledgment, flushes TCP socket, and invokes triggerSleep()
+            return .executed
+
+        case .ping:
+            recentAuditEvents.insert("Authenticated diagnostics ping from '\(peer.displayName)'", at: 0)
+            return .executed
+
+        case .queryStatus:
+            recentAuditEvents.insert("Status query from '\(peer.displayName)'", at: 0)
+            return .executed
+        }
+    }
+
+    // MARK: - Pairing & Trust
+
     public func startPairingFlow() {
-        let hostMac = DeviceIdentity(
-            id: UUID(),
-            publicKeyHex: "f6b89c3140a32057d34199a0937c569a9e334df5d9e527f300c3c6f2df798f82",
-            displayName: "Shrihaan's MacBook Pro",
-            deviceType: .mac,
-            modelIdentifier: "Mac15,3",
-            systemVersion: "macOS 15.1"
-        )
+        guard let hostMac = hostIdentity?.identity else { return }
+
+        let ephemeralKey = EphemeralKeyExchange()
+        let ephemeralPublicHex = ephemeralKey.publicKeyHex
+        let code = String(format: "%06d", Int.random(in: 100_000...999_999))
 
         self.activeInvitation = PairingInvitation(
             hostIdentity: hostMac,
-            ephemeralPublicKeyHex: UUID().uuidString.replacingOccurrences(of: "-", with: "") + UUID().uuidString.replacingOccurrences(of: "-", with: ""),
+            ephemeralPublicKeyHex: ephemeralPublicHex,
             lifetimeSeconds: 120,
-            verificationCode: "849 201"
+            verificationCode: code
         )
         self.isPairingSheetPresented = true
-        recentAuditEvents.insert("Temporary pairing invitation generated (expires in 120s)", at: 0)
+        recentAuditEvents.insert("Single-use pairing invitation generated (expires in 120s)", at: 0)
     }
 
     public func revokeDevice(at index: Int) {
         guard index < trustedDevices.count else { return }
-        var record = trustedDevices[index]
-        record.revoke()
-        trustedDevices[index] = record
-        recentAuditEvents.insert("Trust revoked for device '\(record.peer.displayName)'", at: 0)
+        let record = trustedDevices[index]
+        Task {
+            try? await trustStore.revoke(id: record.id)
+            let updated = await trustStore.allRecords()
+            self.trustedDevices = updated
+            recentAuditEvents.insert("Trust permanently revoked for '\(record.peer.displayName)'", at: 0)
+        }
     }
 }

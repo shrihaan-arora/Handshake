@@ -28,6 +28,8 @@
 	<array>
 		<string>_handshake._tcp</string>
 	</array>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Handshake requires permission to control System Events to lock your Mac and manage display sleep upon your authorized command.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

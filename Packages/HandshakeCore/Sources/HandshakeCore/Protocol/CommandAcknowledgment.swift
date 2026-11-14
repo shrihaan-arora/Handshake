@@ -7,7 +7,7 @@ public struct CommandAcknowledgment: Codable, Sendable, Equatable, Identifiable 
         /// Packet received, authenticated, and scheduled for execution.
         case received
         /// Action successfully invoked on the host operating system.
-        case executed(String)
+        case executed
         /// Execution failed due to a system or permission error.
         case failed(String)
         /// Command rejected due to authentication, replay, or capability failure.

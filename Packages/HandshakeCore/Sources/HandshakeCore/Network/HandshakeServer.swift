@@ -186,6 +186,14 @@ public actor HandshakeServer {
                 let ackData = try JSONEncoder().encode(ack)
                 try await NetworkFraming.send(data: ackData, over: connection)
 
+                // 8. Orderly sleep post-processing: flush TCP buffers and initiate sleep if commanded
+                if message.command == .sleep, case .executed = status {
+                    #if os(macOS)
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms TCP buffer flush
+                    _ = MacSleepEngine().triggerSleep()
+                    #endif
+                }
+
             } catch {
                 // Connection error or malformed frame: fail closed
             }

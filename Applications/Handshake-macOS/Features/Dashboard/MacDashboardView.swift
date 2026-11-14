@@ -128,6 +128,12 @@ public struct MacDashboardView: View {
             .padding(MacTheme.Spacing.xl)
         }
         .frame(minWidth: 640, minHeight: 500)
+        .onAppear {
+            viewModel.startServer()
+        }
+        .onDisappear {
+            viewModel.stopServer()
+        }
         .sheet(isPresented: $viewModel.isPairingSheetPresented) {
             if let invitation = viewModel.activeInvitation {
                 MacPairingView(invitation: invitation)
