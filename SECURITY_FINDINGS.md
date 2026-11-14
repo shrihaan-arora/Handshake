@@ -18,6 +18,7 @@
 | **SEC-07** | Low | Logic Bypass | IEEE-754 NaN comparison in `CommandMessage.isExpired` returned false. | Resolved | Added `guard age.isFinite else { return true }`. |
 | **SEC-08** | Low | State Machine | `SequenceCounter.nextOutgoing()` trapped on reaching `UInt64.max`. | Resolved | Saturated counter at `UInt64.max` to prevent crash and signal session re-negotiation. |
 | **SEC-09** | High | DoS / State Poisoning | Sequence counter state desynchronization if unauthenticated or tampered packet mutates sequence window. | Resolved | Implemented two-phase sequence validation: pre-flight check freshness before crypto, commit to state only after digital signature and AEAD decryption pass. |
+| **SEC-10** | Medium | Privacy / Battery | Persistent background Bluetooth scanning or advertising causes battery drain and beacon tracking. | Resolved | Restricted CoreBluetooth strictly to foreground active windows on both platforms with 4s bounded timeouts and explicit connection cancellation. |
 
 ---
 

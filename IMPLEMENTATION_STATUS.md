@@ -20,7 +20,7 @@
 | **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 / 4-byte framing | Yes | Yes (6 tests) | **Implemented (Milestone D)** |
 | **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Yes | Yes (SystemEngineTests) | **Implemented (Milestone E)** |
 | **Sleep Mac Command Engine** | macOS System | IOKit power management | Yes | Yes (SystemEngineTests) | **Implemented (Milestone F)** |
-| **Bluetooth LE Transport** | Network | CoreBluetooth Central/Peripheral | Pending (Milestone G) | Pending | In Progress |
+| **Bluetooth LE Transport** | Network | CoreBluetooth Central/Peripheral | Yes | Yes (BLETransportTests) | **Implemented (Milestone G)** |
 | **iPhone Dashboard UI** | iOS App | iPhone 16e (A18), iOS 17+ | Yes | Yes | **Integrated** |
 | **Mac Companion UI** | macOS App | MacBook Air (M4), macOS 14+ | Yes | Yes | **Integrated** |
 
