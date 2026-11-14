@@ -21,6 +21,18 @@ public actor SequenceCounter {
         return outgoingCounter
     }
 
+    /// Checks whether an incoming sequence number would be accepted without mutating the counter state.
+    public func checkIncoming(_ sequenceNumber: UInt64) -> Bool {
+        guard sequenceNumber > 0 else { return false }
+        if sequenceNumber > highestIncomingSequence {
+            return true
+        }
+        if highestIncomingSequence - sequenceNumber < replayWindowSize {
+            return !seenRecentSequences.contains(sequenceNumber)
+        }
+        return false
+    }
+
     /// Validates an incoming sequence number against replayed or dropped frames.
     /// Returns true if valid and updates the tracking state; returns false on replay.
     /// Resilient against overflow attacks with high sequence numbers.

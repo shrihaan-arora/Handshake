@@ -58,14 +58,24 @@ public struct CommandEnvelope: Codable, Sendable, Identifiable, Equatable {
     }
 
     /// Associated data byte buffer used to bind envelope metadata to the AEAD authentication tag.
+    /// Uses length-prefixing for variable-length strings to eliminate canonicalization delimiter collisions.
     public var associatedDataPayload: Data {
         var buffer = Data()
         buffer.append(version)
         withUnsafeBytes(of: id.uuid) { buffer.append(contentsOf: $0) }
         withUnsafeBytes(of: sequenceNumber.bigEndian) { buffer.append(contentsOf: $0) }
         withUnsafeBytes(of: timestampMilliseconds.bigEndian) { buffer.append(contentsOf: $0) }
-        if let senderData = senderPublicKeyHex.data(using: .utf8) { buffer.append(senderData) }
-        if let recipientData = recipientPublicKeyHex.data(using: .utf8) { buffer.append(recipientData) }
+
+        let senderData = senderPublicKeyHex.data(using: .utf8) ?? Data()
+        var senderLen = UInt16(senderData.count).bigEndian
+        withUnsafeBytes(of: &senderLen) { buffer.append(contentsOf: $0) }
+        buffer.append(senderData)
+
+        let recipientData = recipientPublicKeyHex.data(using: .utf8) ?? Data()
+        var recipientLen = UInt16(recipientData.count).bigEndian
+        withUnsafeBytes(of: &recipientLen) { buffer.append(contentsOf: $0) }
+        buffer.append(recipientData)
+
         return buffer
     }
 }

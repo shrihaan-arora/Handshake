@@ -14,11 +14,11 @@
 | 3 | Both devices verify pairing code independently | Independent SAS derivation via HKDF | **VERIFIED** (Milestone C) |
 | 4 | Both devices explicitly approve pairing | Bilateral confirmation signature exchange | **VERIFIED** (Milestone C) |
 | 5 | Trusted identities survive app restarts | Keychain / Secure Storage persistence | **VERIFIED** (Milestone B) |
-| 6 | Wi-Fi discovery works locally | Bonjour `_handshake._tcp` advertisement & browsing | Pending (Milestone D) |
-| 7 | Secure communication works | AES-256-GCM + P-256 ECDSA authenticated framing | Pending (Milestone D) |
+| 6 | Wi-Fi discovery works locally | Bonjour `_handshake._tcp` advertisement & browsing | **VERIFIED** (Milestone D) |
+| 7 | Secure communication works | AES-256-GCM + P-256 ECDSA authenticated framing | **VERIFIED** (Milestone D) |
 | 8 | Packet replay is rejected | Monotonic sequence window verification | **VERIFIED** (Core) |
 | 9 | Packet tampering is rejected | AEAD authentication tag + AAD validation | **VERIFIED** (Core) |
-| 10 | Unpaired devices cannot issue commands | Trust store public identity signature verification | Pending (Milestone D) |
+| 10 | Unpaired devices cannot issue commands | Trust store public identity signature verification | **VERIFIED** (Milestone D) |
 | 11 | Lock Mac command works through approved mechanism | Documented Apple system call / user permission | Pending (Milestone E) |
 | 12 | Sleep Mac command works | IOKit `IOPMSleepSystem` / power management | Pending (Milestone F) |
 | 13 | Acknowledgements accurately represent execution | Staged receipt -> execution -> verified ack | Pending (Milestone E/F) |

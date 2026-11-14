@@ -16,9 +16,9 @@
 | **Trust Store Subsystem** | Crypto | Persistent Keychain Device Registry | Yes | Yes | **Implemented (Milestone B)** |
 | **Ephemeral ECDH & SAS** | Crypto | P-256 Key Agreement / HKDF-SHA256 | Yes | Yes | **Implemented (Milestone B)** |
 | **QR Code Pairing Protocol** | Protocol | Camera (iOS) / CoreImage (macOS) | Yes | Yes (5 tests) | **Implemented (Milestone C)** |
-| **Wi-Fi Transport (Bonjour)** | Network | `_handshake._tcp` (NWListener/NWConnection) | Pending (Milestone D) | Pending | Queued |
-| **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 | Pending (Milestone D) | Pending | Queued |
-| **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Pending (Milestone E) | Pending | Queued |
+| **Wi-Fi Transport (Bonjour)** | Network | `_handshake._tcp` (NWListener/NWConnection) | Yes | Yes | **Implemented (Milestone D)** |
+| **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 / 4-byte framing | Yes | Yes (6 tests) | **Implemented (Milestone D)** |
+| **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Pending (Milestone E) | Pending | In Progress |
 | **Sleep Mac Command Engine** | macOS System | IOKit power management | Pending (Milestone F) | Pending | Queued |
 | **Bluetooth LE Transport** | Network | CoreBluetooth Central/Peripheral | Pending (Milestone G) | Pending | Optional |
 | **iPhone Dashboard UI** | iOS App | iPhone 16e (A18), iOS 17+ | V1 UI Ready | V1 UI Ready | Awaiting Engine |
