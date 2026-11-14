@@ -61,8 +61,8 @@ public struct PairingScannerView: View {
                     }
                     .padding(.horizontal, HandshakeTheme.Spacing.md)
 
-                    // Phase 1 notice
-                    Text("Phase 1 Preview: Cryptographic pairing handshake will be executed in Phase 2.")
+                    // V1 Security Assurance
+                    Text("Handshake V1: Scan your Mac companion's pairing code to establish mutual bilateral trust.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
