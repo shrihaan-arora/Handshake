@@ -28,7 +28,7 @@ In compliance with the **Handshake Security Engineering Constitution**:
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **SwiftUI** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | Declarative user interface | Apple Proprietary OS Component | Apple Platform SDK Signed |
 | **Foundation** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | Core data structures & types | Apple / Apache 2.0 (Swift) | Apple Platform SDK Signed |
-| **CryptoKit** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | Curve25519, AES-GCM, HKDF, SHA | Apple Proprietary OS Component | Apple Platform SDK Signed |
+| **CryptoKit** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | NIST P-256, AES-256-GCM, HKDF, SHA-256 | Apple Proprietary OS Component | Apple Platform SDK Signed |
 | **Network.framework** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | Direct peer TLS & Bonjour | Apple Proprietary OS Component | Apple Platform SDK Signed |
 | **CoreBluetooth** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | BLE peripheral & central transport | Apple Proprietary OS Component | Apple Platform SDK Signed |
 | **Security.framework** | Apple Inc. (Native OS) | iOS 17+ / macOS 14+ | Secure Enclave & Keychain storage | Apple Proprietary OS Component | Apple Platform SDK Signed |

@@ -83,10 +83,12 @@ Handshake/
   - Native iPhone Dashboard and macOS Companion with Menu-bar support.
   - Apple-native design system with light/dark mode support.
   - Zero-dependency supply chain inventory and threat model documentation.
-- **Phase 2: Cryptographic Engine & Secure Out-of-Band Pairing**
-  - Curve25519 / P-256 Keychain identity management.
-  - QR-based ephemeral key agreement and SAS fingerprint verification.
-  - Anti-replay and message framing verification.
+- **Phase 2: Cryptographic Engine & Secure Out-of-Band Pairing** *(Next Milestone)*
+  - NIST P-256 Secure Enclave & Keychain hardware identity management.
+  - Ephemeral P-256 ECDH key agreement with transcript hashing.
+  - Out-of-band 6-digit SAS verification (local derivation only; zero wire leakage).
+  - Single-use pairing invitation consumption state machine.
+  - Wire-level AES-256-GCM AEAD encryption over command envelopes.
 - **Phase 3: Local Network Transport**
   - Bonjour discovery and mutual TLS 1.3 over `Network.framework`.
   - CoreBluetooth peripheral advertising and central discovery.
