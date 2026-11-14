@@ -12,7 +12,9 @@
 | **Protocol Data Models** | Core | iOS 17+, macOS 14+ | Yes | Yes (51 tests) | Hardened |
 | **Monotonic Replay Window** | Core | iOS 17+, macOS 14+ | Yes | Yes | Hardened |
 | **Timing & Skew Engine** | Core | iOS 17+, macOS 14+ | Yes | Yes | Hardened |
-| **Keychain Identity Engine** | Crypto | Secure Enclave (P-256) / Keychain | Pending (Milestone B) | Pending | Queued |
+| **Keychain Identity Engine** | Crypto | Secure Enclave (P-256) / Keychain | Yes | Yes (6 tests) | **Implemented (Milestone B)** |
+| **Trust Store Subsystem** | Crypto | Persistent Keychain Device Registry | Yes | Yes | **Implemented (Milestone B)** |
+| **Ephemeral ECDH & SAS** | Crypto | P-256 Key Agreement / HKDF-SHA256 | Yes | Yes | **Implemented (Milestone B)** |
 | **QR Code Pairing Protocol** | Protocol | Camera (iOS) / CoreImage (macOS) | Pending (Milestone C) | Pending | Queued |
 | **Wi-Fi Transport (Bonjour)** | Network | `_handshake._tcp` (NWListener/NWConnection) | Pending (Milestone D) | Pending | Queued |
 | **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 | Pending (Milestone D) | Pending | Queued |
