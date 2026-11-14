@@ -32,7 +32,9 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
     /// Mark the device as revoked, preventing future incoming commands.
     public mutating func revoke() {
         self.isRevoked = true
-        self.revokedAt = Date()
+        if self.revokedAt == nil {
+            self.revokedAt = Date()
+        }
     }
 }
 
