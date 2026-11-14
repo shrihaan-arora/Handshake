@@ -12,13 +12,18 @@ public actor SequenceCounter {
     }
 
     /// Increments and returns the next monotonic sequence number for an outgoing packet.
+    /// Resilient against integer overflow (saturates at UInt64.max).
     public func nextOutgoing() -> UInt64 {
+        guard outgoingCounter < UInt64.max else {
+            return UInt64.max
+        }
         outgoingCounter += 1
         return outgoingCounter
     }
 
     /// Validates an incoming sequence number against replayed or dropped frames.
     /// Returns true if valid and updates the tracking state; returns false on replay.
+    /// Resilient against overflow attacks with high sequence numbers.
     public func validateAndAcceptIncoming(_ sequenceNumber: UInt64) -> Bool {
         // Sequence numbers must be strictly positive
         guard sequenceNumber > 0 else { return false }
@@ -36,8 +41,10 @@ public actor SequenceCounter {
             return true
         }
 
-        // If it's within the window, check if it's already been seen
-        if sequenceNumber + replayWindowSize > highestIncomingSequence {
+        // If it's within the window, check if it's already been seen.
+        // Use subtraction because sequenceNumber <= highestIncomingSequence at this branch,
+        // preventing integer overflow when sequenceNumber is near UInt64.max.
+        if highestIncomingSequence - sequenceNumber < replayWindowSize {
             if seenRecentSequences.contains(sequenceNumber) {
                 // Replay detected!
                 return false

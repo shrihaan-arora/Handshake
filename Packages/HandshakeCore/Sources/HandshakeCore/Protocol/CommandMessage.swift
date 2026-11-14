@@ -23,8 +23,10 @@ public struct CommandMessage: Codable, Sendable, Identifiable, Equatable {
     }
 
     /// Evaluates whether this command has surpassed its validity horizon.
+    /// Safely handles non-finite (NaN, infinite) timestamps and extreme skews.
     public func isExpired(at date: Date = Date()) -> Bool {
         let age = date.timeIntervalSince(timestamp)
+        guard age.isFinite else { return true }
         // Check both if command is too old, or if it was issued too far in the future (>5s clock skew)
         return age > validityWindowSeconds || age < -5.0
     }

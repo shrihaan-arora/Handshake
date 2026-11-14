@@ -41,16 +41,26 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         date > expiresAt
     }
 
-    /// Remaining validity duration in seconds.
+    /// Remaining validity duration in seconds. Resilient against non-finite or extreme dates.
     public func remainingSeconds(at date: Date = Date()) -> Int {
-        max(0, Int(expiresAt.timeIntervalSince(date)))
+        let remaining = expiresAt.timeIntervalSince(date)
+        guard remaining.isFinite, remaining > 0 else { return 0 }
+        guard remaining < Double(Int.max) else { return Int.max }
+        return Int(remaining)
     }
 
-    /// URL-formatted string for QR code generation.
+    /// URL-formatted string for QR code generation. Resilient against non-finite epoch conversions.
     public var qrPayloadString: String {
         var components = URLComponents()
         components.scheme = "handshake"
         components.host = "pair"
+        let expSeconds = expiresAt.timeIntervalSince1970
+        let expValue: String
+        if expSeconds.isFinite && expSeconds > 0 && expSeconds < Double(Int.max) {
+            expValue = String(Int(expSeconds))
+        } else {
+            expValue = "0"
+        }
         components.queryItems = [
             URLQueryItem(name: "v", value: "1"),
             URLQueryItem(name: "id", value: id.uuidString),
@@ -59,7 +69,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
             URLQueryItem(name: "epk", value: ephemeralPublicKeyHex),
             URLQueryItem(name: "port", value: String(localPort)),
             URLQueryItem(name: "nonce", value: nonce),
-            URLQueryItem(name: "exp", value: String(Int(expiresAt.timeIntervalSince1970)))
+            URLQueryItem(name: "exp", value: expValue)
         ]
         return components.url?.absoluteString ?? "handshake://pair?id=\(id.uuidString)"
     }
