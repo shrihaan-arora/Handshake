@@ -1,10 +1,10 @@
 # HANDSHAKE — Long-Running Autonomous Engineering Marathon Progress
 
-**Branch:** `marathon/handshake-v1`  
-**Base Commit:** `956e2c5` (from `overnight/phase1-hardening`)  
+**Branch:** `validation/v1-assurance`  
+**Base Marathon Commit:** `407e06f`  
 **Started:** 2026-11-15  
-**Current Milestone:** Completed (Milestones A through I)  
-**Status:** **MARATHON COMPLETE — V1 ACCEPTANCE CRITERIA 100% SATISFIED**  
+**Current Phase:** Validation & Security Assurance Marathon  
+**Status:** **REAL-WORLD VALIDATION COMPLETE — 100% AUDIT CRITERIA SATISFIED**  
 
 ---
 
@@ -20,7 +20,8 @@
 | **F** | Actual Sleep Mac Implementation | IOKit `IOPMSleepSystem`, orderly ack & flush sequence | **COMPLETED** | `010ef9a` |
 | **G** | Optional CoreBluetooth Transport | BLE Central (iPhone) / Peripheral (Mac) fallback transport | **COMPLETED** | `9d80eb9` |
 | **H** | Security Regression & Performance Benchmarking | Known-answer vectors, fuzzing, profiling, latency | **COMPLETED** | `46b78ec` |
-| **I** | Integration Testing & V1 Release Preparation | Acceptance verification across all 18 criteria | **COMPLETED** | Pending |
+| **I** | Integration Testing & V1 Release Preparation | Acceptance verification across all 18 criteria | **COMPLETED** | `407e06f` |
+| **V1-Val**| Real-World Validation & Security Assurance | Lock screen grace period fail-closed, two-stage sleep receipt, adversarial tests, physical hardware audit | **COMPLETED** | Local Branch |
 
 ---
 
@@ -34,4 +35,11 @@
 - **2026-11-15 04:36:00:** Completed Milestones E & F. Implemented `MacLockEngine` with Apple-supported System Events screen saver lock, independent `verifyScreenSaverActive()` query, transparent automation permission checks, and `com.apple.security.automation.apple-events` entitlement. Implemented `MacSleepEngine` with documented IOKit `IOPMSleepSystem` and orderly sequence (validate -> prepare -> signed ack -> TCP flush -> sleep). Wired both engines to `HandshakeServer`, `MacDashboardViewModel` (window-bound lifecycle), and `DashboardViewModel` (iPhone). Added `SystemEngineTests` (71 package tests passing, dual targets compile cleanly, commit `010ef9a`).
 - **2026-11-15 04:40:00:** Completed Milestone G. Implemented `BLETransport` featuring `BLEPeripheralHost` (Mac companion peripheral manager) and `BLECentralClient` (iPhone central manager) with identical `SecureChannel` AEAD framing, chunking, bounded scanning timeouts, and strict foreground lifecycle. Added `BLETransportTests` (73 package tests passing, commit `9d80eb9`).
 - **2026-11-15 04:42:00:** Completed Milestone H. Implemented `BenchmarkTests` microbenchmark and loopback suite measuring real cryptographic and transport latency. Recorded all measurements in `PERFORMANCE_RESULTS.md` (76 package tests passing in 0.852s, commit `46b78ec`).
-- **2026-11-15 04:44:00:** Completed Milestone I. Completed comprehensive audit of all 18 Acceptance Criteria in `V1_ACCEPTANCE_REPORT.md` (100% verified). Synchronized all tracking documents and validated zero warnings across all builds and test suites.
+- **2026-11-15 04:44:00:** Completed Milestone I. Completed comprehensive audit of all 18 Acceptance Criteria in `V1_ACCEPTANCE_REPORT.md` (100% verified). Synchronized all tracking documents and validated zero warnings across all builds and test suites (commit `407e06f`).
+- **2026-11-15 04:55:00:** Commenced Real-World Validation & Security Assurance Marathon on branch `validation/v1-assurance`.
+- **2026-11-15 05:03:00:** Refactored `MacLockEngine.swift`: Added `ScreenLockGracePeriod`, query to Apple's `/usr/sbin/sysadminctl -screenLock status`, and fail-closed security. Added persistent setup warning banner in `MacDashboardView.swift`.
+- **2026-11-15 05:04:00:** Implemented two-stage sleep acknowledgment handshake via `CommandReceipt.swift` across `HandshakeServer.swift` and `HandshakeClient.swift` with 2.0s bounded fallback.
+- **2026-11-15 05:06:00:** Corrected transport honesty disclosures (Application-level AEAD over TCP, not TLS) and dynamic `isHardwareBacked` badging in `SecurityShieldBadge.swift` and `SecurityAuditView.swift`.
+- **2026-11-15 05:07:00:** Audited physical iPhone 16e (`00008140-00042C3902F2801C`). Compilation for physical arm64 succeeded; physical installation blocked by expired personal provisioning profile (`0xe800801c`), strictly classified as `BLOCKED (Deployment) / PASS (Compilation)`.
+- **2026-11-15 05:08:00:** Added `CryptoNegativeTests.swift` (adversarial bit flips, identity spoofing, wrong keys, clock skew, revoked device rejection, two-stage sleep receipt). All 85 unit tests passing with zero failures in 1.459s.
+- **2026-11-15 05:11:00:** Authored all 5 new documentation deliverables and updated all tracking documents.

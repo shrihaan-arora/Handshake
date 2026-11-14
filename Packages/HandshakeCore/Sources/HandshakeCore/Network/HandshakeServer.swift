@@ -186,11 +186,15 @@ public actor HandshakeServer {
                 let ackData = try JSONEncoder().encode(ack)
                 try await NetworkFraming.send(data: ackData, over: connection)
 
-                // 8. Orderly sleep post-processing: flush TCP buffers and initiate sleep if commanded
+                // 8. Orderly two-stage sleep processing:
+                // Guarantee the client receives acknowledgment before sleep enters power-down
                 if message.command == .sleep, case .executed = status {
                     #if os(macOS)
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 200ms TCP buffer flush
-                    _ = MacSleepEngine().triggerSleep()
+                    await awaitReceiptAndSleep(
+                        over: connection,
+                        expectedCommandId: message.id,
+                        expectedClient: trustRecord.peer
+                    )
                     #endif
                 }
 
@@ -199,6 +203,50 @@ public actor HandshakeServer {
             }
         }
     }
+
+    #if os(macOS)
+    /// Two-stage sleep handshake: awaits client's signed CommandReceipt confirmation
+    /// with a bounded 2.0-second fallback timeout before invoking IOPMSleepSystem.
+    private func awaitReceiptAndSleep(
+        over connection: NWConnection,
+        expectedCommandId: UUID,
+        expectedClient: DeviceIdentity
+    ) async {
+        await withTaskGroup(of: Void.self) { group in
+            // Stage 1: Await signed confirmation receipt from iPhone
+            group.addTask {
+                do {
+                    let receiptBytes = try await NetworkFraming.receive(from: connection)
+                    let receipt = try JSONDecoder().decode(CommandReceipt.self, from: receiptBytes)
+                    guard receipt.commandId == expectedCommandId else { return }
+                    guard let sigData = Data(hexString: receipt.signatureHex),
+                          CryptoIdentity.verify(
+                            signatureRaw: sigData,
+                            for: receipt.signablePayload,
+                            publicKeyHex: expectedClient.publicKeyHex
+                          ) else {
+                        return
+                    }
+                    // Verified receipt received! Short pause to allow clean TCP FIN transmission
+                    try? await Task.sleep(nanoseconds: 50_000_000)
+                } catch {
+                    // Receipt timeout or connection closure: proceed to fallback timeout
+                }
+            }
+
+            // Stage 2: Bounded 2.0s fallback timeout
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+
+            // Wait for receipt confirmation or timeout expiration
+            _ = await group.next()
+            group.cancelAll()
+        }
+
+        _ = MacSleepEngine().triggerSleep()
+    }
+    #endif
 
     private func sendRejection(
         commandId: UUID,

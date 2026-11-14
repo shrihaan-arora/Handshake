@@ -39,7 +39,11 @@ public struct SecurityShieldBadge: View {
     }
 
     private var badgeTitle: String {
-        isVerified ? "Hardware-Pinned E2EE" : "Phase 1 Preview (Unverified)"
+        if isVerified {
+            return status.isHardwareBacked ? "Secure Enclave E2EE" : "Keychain-Pinned E2EE"
+        } else {
+            return "Unpaired Device"
+        }
     }
 
     private var backgroundColor: Color {

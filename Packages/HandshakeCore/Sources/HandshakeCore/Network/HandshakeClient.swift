@@ -146,7 +146,26 @@ public final class HandshakeClient: Sendable {
             throw ClientError.invalidAcknowledgment
         }
 
-        // 7. Check execution status
+        // 7. Two-Stage Sleep Handshake:
+        // When the sleep command is accepted, transmit a signed CommandReceipt confirmation
+        // to inform the Mac that its acknowledgment was verified before power-down begins
+        if commandType == .sleep && (ack.status == .executed || ack.status == .received) {
+            let receiptPlaceholder = CommandReceipt(
+                commandId: commandMessage.id,
+                clientIdentity: clientIdentity.identity
+            )
+            let sig = try clientIdentity.sign(data: receiptPlaceholder.signablePayload)
+            let signedReceipt = CommandReceipt(
+                commandId: commandMessage.id,
+                timestampMilliseconds: receiptPlaceholder.timestampMilliseconds,
+                clientIdentity: clientIdentity.identity,
+                signatureHex: sig.hexString
+            )
+            let receiptData = try JSONEncoder().encode(signedReceipt)
+            try await NetworkFraming.send(data: receiptData, over: connection)
+        }
+
+        // 8. Check execution status
         switch ack.status {
         case .received, .executed:
             return ack

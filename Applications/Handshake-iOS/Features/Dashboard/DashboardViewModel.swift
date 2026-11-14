@@ -44,10 +44,26 @@ public final class DashboardViewModel: ObservableObject {
             let records = await trustStore.allRecords()
             if let activeRecord = records.first(where: { !$0.isRevoked }) {
                 self.pairedMac = activeRecord.peer
-                self.securityStatus = .standardSecure
+                self.securityStatus = SecurityStatus(
+                    trustLevel: .paired,
+                    isHardwareBacked: identity.isHardwareBacked,
+                    isTransportEncrypted: true,
+                    isApplicationEncrypted: true,
+                    isReplayGuarded: true,
+                    zeroCloudEnforced: true,
+                    lastAuditedDate: Date()
+                )
             } else {
                 self.pairedMac = nil
-                self.securityStatus = .unconfigured
+                self.securityStatus = SecurityStatus(
+                    trustLevel: .unverified,
+                    isHardwareBacked: identity.isHardwareBacked,
+                    isTransportEncrypted: false,
+                    isApplicationEncrypted: false,
+                    isReplayGuarded: false,
+                    zeroCloudEnforced: true,
+                    lastAuditedDate: nil
+                )
             }
         } catch {
             self.alertTitle = "Identity Error"

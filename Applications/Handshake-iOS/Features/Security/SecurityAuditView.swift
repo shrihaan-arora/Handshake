@@ -32,7 +32,11 @@ public struct SecurityAuditView: View {
                 }
 
                 Section("Trust & Identity") {
-                    AuditItemRow(title: "Device Identity", value: "NIST P-256 (Hardware Rooted)", icon: "key.fill")
+                    AuditItemRow(
+                        title: "Device Identity",
+                        value: status.isHardwareBacked ? "NIST P-256 (Secure Enclave)" : "NIST P-256 (Keychain Protected)",
+                        icon: "key.fill"
+                    )
                     AuditItemRow(title: "Key Storage", value: "Keychain (This Device Only)", icon: "lock.shield.fill")
                     AuditItemRow(title: "Trust Status", value: status.trustLevel.rawValue, icon: "person.badge.shield.checkmark.fill")
                 }

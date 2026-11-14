@@ -60,18 +60,42 @@ public struct MacDashboardView: View {
                     )
                 }
 
+                // Lock Configuration Warning Banner
+                if let warning = viewModel.lockConfigurationWarning {
+                    MacCard {
+                        HStack(alignment: .top, spacing: MacTheme.Spacing.md) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.yellow)
+                                .padding(.top, 2)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Display Lock Grace Period Warning")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+
+                                Text(warning)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Display Lock Grace Period Warning: \(warning)")
+                }
+
                 // Connection & Listener Status Card
                 MacCard {
                     HStack(spacing: MacTheme.Spacing.lg) {
                         VStack(alignment: .leading, spacing: 4) {
                             Label("Local Network Transport", systemImage: "wifi")
                                 .font(.headline)
-                            Text("TLS 1.3 listener on port 5894 (Bonjour: _handshake._tcp)")
+                            Text("Application-Level AEAD (AES-256-GCM + P-256 ECDSA) on TCP 5894 (_handshake._tcp)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Local Network Transport: TLS 1.3 listener on port 5894, Bonjour service handshake")
+                        .accessibilityLabel("Local Network Transport: Application-Level AEAD (AES-256-GCM and P-256 ECDSA) on TCP port 5894, Bonjour service handshake")
 
                         Spacer()
 
@@ -130,9 +154,6 @@ public struct MacDashboardView: View {
         .frame(minWidth: 640, minHeight: 500)
         .onAppear {
             viewModel.startServer()
-        }
-        .onDisappear {
-            viewModel.stopServer()
         }
         .sheet(isPresented: $viewModel.isPairingSheetPresented) {
             if let invitation = viewModel.activeInvitation {
