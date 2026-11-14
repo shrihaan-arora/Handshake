@@ -15,7 +15,7 @@
 | **Keychain Identity Engine** | Crypto | Secure Enclave (P-256) / Keychain | Yes | Yes (6 tests) | **Implemented (Milestone B)** |
 | **Trust Store Subsystem** | Crypto | Persistent Keychain Device Registry | Yes | Yes | **Implemented (Milestone B)** |
 | **Ephemeral ECDH & SAS** | Crypto | P-256 Key Agreement / HKDF-SHA256 | Yes | Yes | **Implemented (Milestone B)** |
-| **QR Code Pairing Protocol** | Protocol | Camera (iOS) / CoreImage (macOS) | Pending (Milestone C) | Pending | Queued |
+| **QR Code Pairing Protocol** | Protocol | Camera (iOS) / CoreImage (macOS) | Yes | Yes (5 tests) | **Implemented (Milestone C)** |
 | **Wi-Fi Transport (Bonjour)** | Network | `_handshake._tcp` (NWListener/NWConnection) | Pending (Milestone D) | Pending | Queued |
 | **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 | Pending (Milestone D) | Pending | Queued |
 | **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Pending (Milestone E) | Pending | Queued |

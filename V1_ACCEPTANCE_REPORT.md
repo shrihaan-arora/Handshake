@@ -10,10 +10,10 @@
 | # | Acceptance Criterion | Verification Method | Status |
 | :---: | :--- | :--- | :---: |
 | 1 | Both native applications compile | `scripts/verify.sh` dual-target builds | **VERIFIED** |
-| 2 | iPhone and Mac can pair using QR | QR generation, camera scanning, ephemeral handshake | Pending (Milestone C) |
-| 3 | Both devices verify pairing code independently | Independent SAS derivation via HKDF | Pending (Milestone C) |
-| 4 | Both devices explicitly approve pairing | Bilateral confirmation signature exchange | Pending (Milestone C) |
-| 5 | Trusted identities survive app restarts | Keychain / Secure Storage persistence | Pending (Milestone B) |
+| 2 | iPhone and Mac can pair using QR | QR generation, camera scanning, ephemeral handshake | **VERIFIED** (Milestone C) |
+| 3 | Both devices verify pairing code independently | Independent SAS derivation via HKDF | **VERIFIED** (Milestone C) |
+| 4 | Both devices explicitly approve pairing | Bilateral confirmation signature exchange | **VERIFIED** (Milestone C) |
+| 5 | Trusted identities survive app restarts | Keychain / Secure Storage persistence | **VERIFIED** (Milestone B) |
 | 6 | Wi-Fi discovery works locally | Bonjour `_handshake._tcp` advertisement & browsing | Pending (Milestone D) |
 | 7 | Secure communication works | AES-256-GCM + P-256 ECDSA authenticated framing | Pending (Milestone D) |
 | 8 | Packet replay is rejected | Monotonic sequence window verification | **VERIFIED** (Core) |

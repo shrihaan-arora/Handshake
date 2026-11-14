@@ -38,17 +38,21 @@ public struct PairingResponse: Codable, Sendable, Equatable {
     public let invitationId: UUID
     public let hostIdentity: DeviceIdentity
     public let hostEphemeralPublicKeyHex: String
+    public let hostSignatureHex: String
+    /// Deprecated wire field: SAS must never be trusted across the wire; derived locally by clients.
     public let sasFingerprintCode: String
 
     public init(
         invitationId: UUID,
         hostIdentity: DeviceIdentity,
         hostEphemeralPublicKeyHex: String,
-        sasFingerprintCode: String
+        hostSignatureHex: String = "",
+        sasFingerprintCode: String = ""
     ) {
         self.invitationId = invitationId
         self.hostIdentity = hostIdentity
         self.hostEphemeralPublicKeyHex = hostEphemeralPublicKeyHex
+        self.hostSignatureHex = hostSignatureHex
         self.sasFingerprintCode = sasFingerprintCode
     }
 }
@@ -56,15 +60,18 @@ public struct PairingResponse: Codable, Sendable, Equatable {
 public struct PairingConfirmation: Codable, Sendable, Equatable {
     public let invitationId: UUID
     public let isApproved: Bool
+    public let clientSignatureHex: String
     public let confirmedSASCode: String
 
     public init(
         invitationId: UUID,
         isApproved: Bool,
-        confirmedSASCode: String
+        clientSignatureHex: String = "",
+        confirmedSASCode: String = ""
     ) {
         self.invitationId = invitationId
         self.isApproved = isApproved
+        self.clientSignatureHex = clientSignatureHex
         self.confirmedSASCode = confirmedSASCode
     }
 }
@@ -72,15 +79,18 @@ public struct PairingConfirmation: Codable, Sendable, Equatable {
 public struct PairingCompletion: Codable, Sendable, Equatable {
     public let invitationId: UUID
     public let isSuccessful: Bool
+    public let hostApprovalSignatureHex: String
     public let establishedTrustRecord: TrustRecord?
 
     public init(
         invitationId: UUID,
         isSuccessful: Bool,
-        establishedTrustRecord: TrustRecord?
+        hostApprovalSignatureHex: String = "",
+        establishedTrustRecord: TrustRecord? = nil
     ) {
         self.invitationId = invitationId
         self.isSuccessful = isSuccessful
+        self.hostApprovalSignatureHex = hostApprovalSignatureHex
         self.establishedTrustRecord = establishedTrustRecord
     }
 }

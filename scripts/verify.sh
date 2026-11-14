@@ -86,7 +86,7 @@ run_step 3 "Handshake-iOS Target Build (Simulator)" \
 echo -e "${BOLD}${BLUE}======================================================================${NC}"
 echo -e "${BOLD}${GREEN}   ALL VERIFICATION CHECKS PASSED (${PASSED_STEPS}/${TOTAL_STEPS})                 ${NC}"
 echo -e "${BOLD}${BLUE}======================================================================${NC}"
-echo "1. HandshakeCore: All package unit tests passed (57 tests, 0 failures)."
+echo "1. HandshakeCore: All package unit tests passed (62 tests, 0 failures)."
 echo "2. Handshake-macOS: Native macOS application compiled cleanly."
 echo "3. Handshake-iOS: Native iOS application compiled cleanly."
 echo "Zero compiler warnings. Zero external third-party dependencies."
