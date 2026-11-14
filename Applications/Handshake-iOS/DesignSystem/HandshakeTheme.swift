@@ -49,3 +49,4 @@ public enum HandshakeTheme {
         public static let smooth = SwiftUI.Animation.spring(response: 0.35, dampingFraction: 0.85)
     }
 }
+

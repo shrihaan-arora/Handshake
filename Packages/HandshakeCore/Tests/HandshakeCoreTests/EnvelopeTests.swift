@@ -97,3 +97,4 @@ final class EnvelopeTests: XCTestCase {
         XCTAssertFalse(HandshakeTime.isTimestampValid(future45s, referenceTime: now))
     }
 }
+

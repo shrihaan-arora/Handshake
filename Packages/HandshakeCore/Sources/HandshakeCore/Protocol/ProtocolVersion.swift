@@ -27,3 +27,4 @@ public struct ProtocolVersion: Codable, Sendable, Equatable, Comparable {
         return lhs.minor < rhs.minor
     }
 }
+

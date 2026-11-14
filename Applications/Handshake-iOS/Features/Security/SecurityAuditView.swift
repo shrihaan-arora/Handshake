@@ -15,14 +15,16 @@ public struct SecurityAuditView: View {
                 Section {
                     VStack(alignment: .leading, spacing: HandshakeTheme.Spacing.xs) {
                         HStack(spacing: HandshakeTheme.Spacing.xs) {
-                            Image(systemName: "checkmark.shield.fill")
+                            Image(systemName: status.trustLevel == .paired ? "checkmark.shield.fill" : "shield")
                                 .font(.title2)
-                                .foregroundStyle(.green)
-                            Text("Security Baseline Active")
+                                .foregroundStyle(status.trustLevel == .paired ? .green : .secondary)
+                            Text(status.trustLevel == .paired ? "Mutual Verification Active" : "Phase 1 Architecture Baseline")
                                 .font(.headline)
                         }
 
-                        Text("Handshake is architected around Apple-native zero-trust cryptography. No cloud intermediaries or third-party telemetry exist.")
+                        Text(status.trustLevel == .paired ?
+                             "All communications are hardware-pinned and end-to-end encrypted." :
+                             "Phase 1 establishes architectural models. Cryptographic key generation, mutual TLS, and QR pairing will be implemented and verified in Phase 2.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -30,16 +32,16 @@ public struct SecurityAuditView: View {
                 }
 
                 Section("Trust & Identity") {
-                    AuditItemRow(title: "Device Identity", value: "Hardware Keypair (P-256 / Ed25519)", icon: "key.fill")
-                    AuditItemRow(title: "Key Storage", value: "Apple Keychain (Device Only)", icon: "lock.shield.fill")
-                    AuditItemRow(title: "Trust Level", value: status.trustLevel.rawValue, icon: "person.badge.shield.checkmark.fill")
+                    AuditItemRow(title: "Device Identity", value: "Keypair (Pending Phase 2)", icon: "key.fill")
+                    AuditItemRow(title: "Key Storage", value: "Keychain (Device Only)", icon: "lock.shield.fill")
+                    AuditItemRow(title: "Trust Status", value: status.trustLevel.rawValue, icon: "person.badge.shield.checkmark.fill")
                 }
 
-                Section("Cryptographic Primitives") {
+                Section("Cryptographic Primitives (Planned Phase 2)") {
                     AuditItemRow(title: "Framework", value: "Apple CryptoKit (Native)", icon: "apple.logo")
-                    AuditItemRow(title: "Transport Security", value: "TLS 1.3 (Network.framework)", icon: "lock.fill")
-                    AuditItemRow(title: "Message Cipher", value: "AES-256-GCM / Poly1305 AEAD", icon: "shield.fill")
-                    AuditItemRow(title: "Key Agreement", value: "X25519 / HKDF-SHA256", icon: "arrow.triangle.swap")
+                    AuditItemRow(title: "Transport Security", value: "TLS 1.3 (Scheduled)", icon: "lock.fill")
+                    AuditItemRow(title: "Message Cipher", value: "AES-256-GCM AEAD (Scheduled)", icon: "shield.fill")
+                    AuditItemRow(title: "Key Agreement", value: "ECDH / HKDF-SHA256 (Scheduled)", icon: "arrow.triangle.swap")
                 }
 
                 Section("Network & Boundary") {
@@ -85,3 +87,4 @@ private struct AuditItemRow: View {
         }
     }
 }
+

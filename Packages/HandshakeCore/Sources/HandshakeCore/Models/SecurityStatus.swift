@@ -54,3 +54,4 @@ public struct SecurityStatus: Codable, Sendable, Equatable {
         lastAuditedDate: nil
     )
 }
+

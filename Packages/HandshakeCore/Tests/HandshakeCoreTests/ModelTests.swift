@@ -73,3 +73,4 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(state.transport, .localWiFi)
     }
 }
+

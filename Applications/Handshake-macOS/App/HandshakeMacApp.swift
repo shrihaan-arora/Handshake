@@ -22,3 +22,4 @@ struct HandshakeMacApp: App {
         .menuBarExtraStyle(.window)
     }
 }
+

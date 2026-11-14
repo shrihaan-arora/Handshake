@@ -19,3 +19,4 @@ public struct MacCard<Content: View>: View {
         )
     }
 }
+

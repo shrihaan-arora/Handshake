@@ -24,3 +24,4 @@ public enum MacTheme {
         public static let hairline = Color.primary.opacity(0.08)
     }
 }
+

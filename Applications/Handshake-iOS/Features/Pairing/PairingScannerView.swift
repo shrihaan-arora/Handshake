@@ -110,3 +110,4 @@ private struct ProtocolStepRow: View {
         .padding(.vertical, 2)
     }
 }
+

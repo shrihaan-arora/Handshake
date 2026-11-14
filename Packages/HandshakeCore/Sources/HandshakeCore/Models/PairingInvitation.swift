@@ -64,3 +64,4 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         return components.url?.absoluteString ?? "handshake://pair?id=\(id.uuidString)"
     }
 }
+

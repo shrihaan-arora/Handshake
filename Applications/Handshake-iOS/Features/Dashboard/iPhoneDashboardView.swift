@@ -82,6 +82,29 @@ public struct iPhoneDashboardView: View {
                             }
                         }
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
+                    } else {
+                        HandshakeCard {
+                            HStack(spacing: HandshakeTheme.Spacing.md) {
+                                Image(systemName: "macbook.and.iphone")
+                                    .font(.system(size: 28, weight: .light))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: HandshakeTheme.Radius.sm, style: .continuous))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("No Paired MacBook")
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+
+                                    Text("Pair with your Mac to enable direct local control.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+                            }
+                        }
+                        .padding(.horizontal, HandshakeTheme.Spacing.md)
                     }
 
                     // MARK: - Primary Control Actions (Large Buttons)
@@ -97,7 +120,8 @@ public struct iPhoneDashboardView: View {
                             title: "Lock Screen",
                             subtitle: "Locks display and requires Touch ID / password",
                             systemImage: "lock.fill",
-                            style: .primary
+                            style: .primary,
+                            isEnabled: viewModel.pairedMac != nil
                         ) {
                             viewModel.handleLockMacTapped()
                         }
@@ -107,7 +131,8 @@ public struct iPhoneDashboardView: View {
                             title: "Sleep Mac",
                             subtitle: "Puts system into low-power sleep mode",
                             systemImage: "moon.fill",
-                            style: .secondary
+                            style: .secondary,
+                            isEnabled: viewModel.pairedMac != nil
                         ) {
                             viewModel.handleSleepMacTapped()
                         }

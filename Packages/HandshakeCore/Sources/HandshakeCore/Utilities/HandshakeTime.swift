@@ -21,3 +21,4 @@ public enum HandshakeTime {
         return differenceSeconds <= maxSkew
     }
 }
+

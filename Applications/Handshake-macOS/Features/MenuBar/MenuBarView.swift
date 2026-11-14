@@ -85,3 +85,4 @@ public struct MenuBarView: View {
         .frame(width: 260)
     }
 }
+

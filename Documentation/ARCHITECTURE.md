@@ -95,3 +95,4 @@ Handshake/
   - Battery/power status telemetry queries.
 - **Phase 5: Refinement, Hardening & Security Audit**
   - End-to-end pen-testing against spoofing, packet modification, and replay attacks.
+

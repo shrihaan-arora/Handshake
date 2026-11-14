@@ -119,3 +119,4 @@ private struct TouchTargetButtonStyle: ButtonStyle {
             .animation(HandshakeTheme.Animation.quick, value: configuration.isPressed)
     }
 }
+

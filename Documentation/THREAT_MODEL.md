@@ -82,3 +82,4 @@ Handshake enables an iPhone to control a paired MacBook (lock screen, sleep, sta
 - If public key is not in `TrustRecord` store, connection is terminated immediately.
 - Private keys NEVER leave Keychain or Secure Enclave.
 - Zero analytics, zero cloud dependencies, zero telemetry.
+

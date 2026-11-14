@@ -35,3 +35,4 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
         self.revokedAt = Date()
     }
 }
+

@@ -50,3 +50,4 @@ public enum CommandType: String, Codable, Sendable, CaseIterable, Identifiable {
         }
     }
 }
+

@@ -38,3 +38,4 @@ public struct DeviceIdentity: Codable, Sendable, Identifiable, Equatable, Hashab
         return "\(prefix)...\(suffix)".uppercased()
     }
 }
+

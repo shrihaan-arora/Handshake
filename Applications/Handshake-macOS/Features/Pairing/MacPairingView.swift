@@ -124,3 +124,4 @@ public struct MacPairingView: View {
         return nsImage
     }
 }
+

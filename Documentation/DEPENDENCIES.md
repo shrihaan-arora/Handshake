@@ -55,3 +55,4 @@ Whenever an external dependency is evaluated for future milestones:
 - [ ] Static analysis and manual source inspection performed for hidden telemetry, backdoors, or unauthenticated network calls.
 - [ ] Git commit signatures verified against developer public keys.
 - [ ] Checksums documented in this inventory prior to merge.
+

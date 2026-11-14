@@ -128,3 +128,4 @@ public struct MacDashboardView: View {
         }
     }
 }
+

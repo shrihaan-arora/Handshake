@@ -45,3 +45,4 @@ final class ProtocolTests: XCTestCase {
         XCTAssertFalse(CommandType.queryStatus.isImpactful)
     }
 }
+

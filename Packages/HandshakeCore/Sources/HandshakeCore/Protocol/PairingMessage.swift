@@ -84,3 +84,4 @@ public struct PairingCompletion: Codable, Sendable, Equatable {
         self.establishedTrustRecord = establishedTrustRecord
     }
 }
+

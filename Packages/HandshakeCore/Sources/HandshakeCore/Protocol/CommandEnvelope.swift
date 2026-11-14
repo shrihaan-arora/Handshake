@@ -69,3 +69,4 @@ public struct CommandEnvelope: Codable, Sendable, Identifiable, Equatable {
         return buffer
     }
 }
+

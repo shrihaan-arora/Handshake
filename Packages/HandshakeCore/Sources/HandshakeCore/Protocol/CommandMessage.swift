@@ -29,3 +29,4 @@ public struct CommandMessage: Codable, Sendable, Identifiable, Equatable {
         return age > validityWindowSeconds || age < -5.0
     }
 }
+

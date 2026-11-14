@@ -20,3 +20,4 @@ public struct HandshakeCard<Content: View>: View {
         )
     }
 }
+

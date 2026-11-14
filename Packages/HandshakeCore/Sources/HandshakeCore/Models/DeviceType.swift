@@ -25,3 +25,4 @@ public enum DeviceType: String, Codable, Sendable, CaseIterable, CustomStringCon
         }
     }
 }
+

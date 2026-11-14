@@ -12,19 +12,10 @@ public final class DashboardViewModel: ObservableObject {
     @Published public var phase1NoticeMessage: String? = nil
 
     public init() {
-        // Initial mock state for Phase 1 UI demonstration
-        let sampleMac = DeviceIdentity(
-            id: UUID(),
-            publicKeyHex: "f6b89c3140a32057d34199a0937c569a9e334df5d9e527f300c3c6f2df798f82",
-            displayName: "Shrihaan's MacBook Pro",
-            deviceType: .mac,
-            modelIdentifier: "Mac15,3",
-            systemVersion: "macOS 15.1"
-        )
-
-        self.pairedMac = sampleMac
-        self.connectionState = .connected(transport: .localWiFi, peer: sampleMac)
-        self.securityStatus = .standardSecure
+        // Phase 1 Baseline: No active network connections or verified crypto sessions exist yet
+        self.pairedMac = nil
+        self.connectionState = .disconnected
+        self.securityStatus = .unconfigured
     }
 
     public func handleLockMacTapped() {
@@ -49,3 +40,4 @@ public final class DashboardViewModel: ObservableObject {
         self.phase1NoticeMessage = nil
     }
 }
+

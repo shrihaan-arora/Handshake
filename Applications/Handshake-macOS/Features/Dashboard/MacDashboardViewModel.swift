@@ -23,31 +23,14 @@ public final class MacDashboardViewModel: ObservableObject {
             systemVersion: "macOS 15.1"
         )
 
-        // Sample trusted client iPhone
-        let samplePhone = DeviceIdentity(
-            id: UUID(),
-            publicKeyHex: "7a1b3c9e2057d34199a0937c569a9e334df5d9e527f300c3c6f2df798f82f6b8",
-            displayName: "Shrihaan's iPhone 16 Pro",
-            deviceType: .iPhone,
-            modelIdentifier: "iPhone16,1",
-            systemVersion: "iOS 18.1"
-        )
-
-        self.trustedDevices = [
-            TrustRecord(
-                peer: samplePhone,
-                pairedAt: Date().addingTimeInterval(-86400 * 3),
-                lastSeenAt: Date()
-            )
-        ]
-
-        self.connectionState = .connected(transport: .localWiFi, peer: samplePhone)
-        self.securityStatus = .standardSecure
+        // Phase 1 Baseline: No active network connections or verified crypto sessions exist yet
+        self.trustedDevices = []
+        self.connectionState = .disconnected
+        self.securityStatus = .unconfigured
         self.recentAuditEvents = [
-            "Hardware-backed identity key initialized in Keychain",
-            "Local TLS listener configured for port 5894",
-            "Zero-cloud enforcement confirmed: 0 outbound external sockets",
-            "Paired device '\(samplePhone.displayName)' authenticated over local Wi-Fi"
+            "Phase 1 Architecture Baseline initialized",
+            "Zero-cloud enforcement: 0 external cloud connections configured",
+            "Local networking and crypto pairing scheduled for Phase 2 implementation"
         ]
     }
 
