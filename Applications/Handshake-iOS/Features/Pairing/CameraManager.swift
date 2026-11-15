@@ -53,7 +53,7 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
 
-            if self.state == .configured || self.state == .running {
+            if self.videoDeviceInput != nil && self.metadataOutput != nil && (self.state == .configured || self.state == .running) {
                 completion?(.success(()))
                 return
             }
@@ -70,16 +70,26 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
 
             self.captureSession.beginConfiguration()
 
-            // 1. Configure session preset for high-quality barcode scanning & preview
-            if self.captureSession.canSetSessionPreset(.photo) {
-                self.captureSession.sessionPreset = .photo
-            } else if self.captureSession.canSetSessionPreset(.high) {
+            // 1. Configure session preset for high-reliability barcode scanning & video preview
+            if self.captureSession.canSetSessionPreset(.high) {
                 self.captureSession.sessionPreset = .high
+            } else if self.captureSession.canSetSessionPreset(.photo) {
+                self.captureSession.sessionPreset = .photo
             }
 
-            // 2. Discover physical back camera (prioritize standard wide-angle lens for macro QR focus)
-            let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
-                ?? AVCaptureDevice.default(for: .video)
+            // 2. Discover physical back camera using modern DiscoverySession (iPhone 16/16e compatible)
+            let deviceTypes: [AVCaptureDevice.DeviceType] = [
+                .builtInWideAngleCamera,
+                .builtInDualCamera,
+                .builtInTripleCamera,
+                .builtInUltraWideCamera
+            ]
+            let discovery = AVCaptureDevice.DiscoverySession(
+                deviceTypes: deviceTypes,
+                mediaType: .video,
+                position: .back
+            )
+            let device = discovery.devices.first ?? AVCaptureDevice.default(for: .video)
 
             guard let camera = device else {
                 self.captureSession.commitConfiguration()
@@ -99,9 +109,6 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
                 }
                 if camera.isExposureModeSupported(.continuousAutoExposure) {
                     camera.exposureMode = .continuousAutoExposure
-                }
-                if camera.isSubjectAreaChangeMonitoringEnabled {
-                    camera.isSubjectAreaChangeMonitoringEnabled = true
                 }
                 camera.unlockForConfiguration()
             } catch {
@@ -174,7 +181,8 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
 
-            if self.state == .unconfigured {
+            // Re-configure if inputs are missing, unconfigured, or recovering from a previous failure
+            if self.videoDeviceInput == nil || self.metadataOutput == nil || self.state == .unconfigured {
                 self.configureSession { [weak self] result in
                     if case .success = result {
                         self?.startSession()

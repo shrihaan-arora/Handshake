@@ -64,6 +64,10 @@ public struct PairingScannerView: View {
             }
             .onAppear {
                 permissionManager.refreshStatus()
+                if permissionManager.status == .authorized {
+                    isScanningActive = true
+                    CameraManager.shared.startSession()
+                }
             }
             .onDisappear {
                 isTorchOn = false
@@ -72,6 +76,10 @@ public struct PairingScannerView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 permissionManager.refreshStatus()
+                if permissionManager.status == .authorized {
+                    isScanningActive = true
+                    CameraManager.shared.startSession()
+                }
             }
         }
     }

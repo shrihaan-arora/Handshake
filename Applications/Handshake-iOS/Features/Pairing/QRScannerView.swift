@@ -2,16 +2,10 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
-/// Native UIView hosting AVCaptureVideoPreviewLayer as its root CoreAnimation layer class.
-/// Automatically keeps video preview layer bounds and layout in lockstep with UIKit and SwiftUI layout passes.
+/// Native UIView hosting AVCaptureVideoPreviewLayer as a managed sublayer.
+/// Automatically keeps video preview layer bounds, orientation, and session in lockstep with UIKit and SwiftUI layout passes.
 public final class CameraPreviewView: UIView {
-    public override class var layerClass: AnyClass {
-        return AVCaptureVideoPreviewLayer.self
-    }
-
-    public var previewLayer: AVCaptureVideoPreviewLayer {
-        return layer as! AVCaptureVideoPreviewLayer
-    }
+    public let previewLayer = AVCaptureVideoPreviewLayer()
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -26,12 +20,23 @@ public final class CameraPreviewView: UIView {
     private func setupView() {
         backgroundColor = .black
         previewLayer.videoGravity = .resizeAspectFill
-        clipsToBounds = true
+        layer.addSublayer(previewLayer)
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         previewLayer.frame = bounds
+        CATransaction.commit()
+        updateOrientation()
+    }
+
+    /// Safely binds or updates the AVCaptureSession on the preview layer.
+    public func bindSession(_ session: AVCaptureSession) {
+        if previewLayer.session !== session {
+            previewLayer.session = session
+        }
         updateOrientation()
     }
 
@@ -54,6 +59,9 @@ public final class CameraPreviewView: UIView {
 
         if connection.videoOrientation != targetOrientation {
             connection.videoOrientation = targetOrientation
+        }
+        if !connection.isEnabled {
+            connection.isEnabled = true
         }
         #endif
     }
@@ -88,7 +96,7 @@ public struct QRScannerView: UIViewRepresentable {
         manager.isScanningActive = isScanningActive
 
         // Bind capture session to the preview layer
-        previewView.previewLayer.session = manager.captureSession
+        previewView.bindSession(manager.captureSession)
 
         // Start session asynchronously on dedicated serial queue
         manager.startSession()
@@ -102,6 +110,11 @@ public struct QRScannerView: UIViewRepresentable {
         manager.onCodeScanned = onCodeScanned
         manager.onError = onError
         manager.setTorch(on: isTorchOn)
+
+        uiView.bindSession(manager.captureSession)
+        if !manager.captureSession.isRunning {
+            manager.startSession()
+        }
         uiView.updateOrientation()
     }
 
