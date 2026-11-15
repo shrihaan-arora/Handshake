@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Thread-safe persistent store for trusted peer devices.
 /// Persists records securely via Keychain Services, ensuring trusted device identities
@@ -38,11 +39,51 @@ public actor TrustStore {
         try keychain.save(data: data, forAccount: storageAccount)
     }
 
+    // MARK: - Key Management (Keychain-Isolated Master Secrets)
+
+    private func pskAccount(forPeerId id: UUID) -> String {
+        "\(storageAccount).psk.\(id.uuidString)"
+    }
+
+    /// Stores the pairwise master secret in dedicated Keychain storage.
+    public func savePreSharedKey(_ psk: SymmetricKey, forPeerId id: UUID) throws {
+        let keyData = psk.withUnsafeBytes { Data($0) }
+        try keychain.save(data: keyData, forAccount: pskAccount(forPeerId: id))
+    }
+
+    /// Retrieves the pairwise master secret from Keychain storage.
+    public func retrievePreSharedKey(forPeerId id: UUID) -> SymmetricKey? {
+        if let keyData = try? keychain.retrieve(forAccount: pskAccount(forPeerId: id)), keyData.count == 32 {
+            return SymmetricKey(data: keyData)
+        }
+        // Legacy fallback if migrated record had it
+        if let record = records[id], let hex = record.preSharedKeyHex, let data = Data(hexString: hex), data.count == 32 {
+            return SymmetricKey(data: data)
+        }
+        return nil
+    }
+
+    /// Retrieves the pairwise master secret for a given peer public key.
+    public func retrievePreSharedKey(forPublicKeyHex publicKeyHex: String) -> SymmetricKey? {
+        guard let record = getRecord(publicKeyHex: publicKeyHex) else { return nil }
+        return retrievePreSharedKey(forPeerId: record.id)
+    }
+
+    /// Securely deletes the pairwise master secret from Keychain upon revocation or removal.
+    public func deletePreSharedKey(forPeerId id: UUID) {
+        try? keychain.delete(account: pskAccount(forPeerId: id))
+    }
+
     // MARK: - Query & Mutation
 
     /// Stores a new trusted device record or updates an existing one.
     public func addOrUpdate(_ record: TrustRecord) throws {
-        records[record.id] = record
+        var sanitized = record
+        if let pskHex = record.preSharedKeyHex, let pskData = Data(hexString: pskHex), pskData.count == 32 {
+            try? savePreSharedKey(SymmetricKey(data: pskData), forPeerId: record.id)
+            sanitized.preSharedKeyHex = nil
+        }
+        records[sanitized.id] = sanitized
         try saveToKeychain()
     }
 
@@ -67,12 +108,14 @@ public actor TrustStore {
         guard var record = records[id] else { return }
         record.revoke()
         records[id] = record
+        deletePreSharedKey(forPeerId: id)
         try saveToKeychain()
     }
 
     /// Completely removes a device record from the trust store.
     public func remove(id: UUID) throws {
         records.removeValue(forKey: id)
+        deletePreSharedKey(forPeerId: id)
         try saveToKeychain()
     }
 
@@ -91,6 +134,9 @@ public actor TrustStore {
 
     /// Removes all records (e.g. for factory reset or test isolation).
     public func removeAll() throws {
+        for id in records.keys {
+            deletePreSharedKey(forPeerId: id)
+        }
         records.removeAll()
         try keychain.delete(account: storageAccount)
     }

@@ -2,7 +2,7 @@ import Foundation
 
 /// Persistent record representing a locally trusted peer device.
 /// Stored in the local keychain/secure database.
-public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
+public struct TrustRecord: Codable, Sendable, Identifiable, Equatable, CustomStringConvertible, CustomDebugStringConvertible {
     public let id: UUID
     public let peer: DeviceIdentity
     public let pairedAt: Date
@@ -11,9 +11,17 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
     public var revokedAt: Date?
     public var authorizedCapabilities: [CommandType]
 
-    /// Optional 256-bit pairwise master key derived from the mutual ECDH shared secret
-    /// during pairing. Used for directional session key derivation.
+    /// Optional 256-bit pairwise master key representation.
+    /// Notice: Sanitized and isolated in Keychain via TrustStore.
     public var preSharedKeyHex: String?
+
+    public var description: String {
+        "TrustRecord(id: \(id), peer: \(peer.displayName) [\(peer.shortFingerprint)], isRevoked: \(isRevoked), capabilities: \(authorizedCapabilities))"
+    }
+
+    public var debugDescription: String {
+        "TrustRecord(id: \(id), peer: \(peer.displayName), isRevoked: \(isRevoked), hasPSK: \(preSharedKeyHex != nil))"
+    }
 
     public init(
         id: UUID = UUID(),

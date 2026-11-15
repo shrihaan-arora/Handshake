@@ -83,6 +83,32 @@ public enum SecureChannel {
         return SymmetricKey(data: SHA256.hash(data: fallbackData))
     }
 
+    // MARK: - Deterministic Nonce Construction
+
+    /// Constructs a deterministic 12-byte (96-bit) AES-GCM nonce:
+    /// - 4 bytes: Session salt prefix (derived from the fresh session transcript).
+    /// - 8 bytes: Monotonically increasing sequence number in big-endian format.
+    ///
+    /// Mathematical Guarantee:
+    /// Because sequence numbers cannot wrap or repeat within a session key, every nonce under
+    /// that session key is strictly unique. Because fresh ephemeral ECDH keys are established
+    /// per connection, separate sessions never reuse keys, preventing cross-session collisions.
+    public static func makeDeterministicNonce(
+        salt: Data,
+        sequenceNumber: UInt64
+    ) -> AES.GCM.Nonce {
+        var nonceData = Data()
+        if salt.count >= 4 {
+            nonceData.append(salt.prefix(4))
+        } else {
+            nonceData.append(salt)
+            nonceData.append(contentsOf: repeatElement(0, count: 4 - nonceData.count))
+        }
+        var seqBigEndian = sequenceNumber.bigEndian
+        withUnsafeBytes(of: &seqBigEndian) { nonceData.append(contentsOf: $0) }
+        return try! AES.GCM.Nonce(data: nonceData)
+    }
+
     // MARK: - Encryption / Sealing
 
     /// Encrypts and cryptographically signs a `CommandMessage` into a zero-trust `CommandEnvelope`.
@@ -92,6 +118,7 @@ public enum SecureChannel {
         senderIdentity: CryptoIdentity,
         recipientPublicKeyHex: String,
         sessionKey: SymmetricKey,
+        nonceSalt: Data? = nil,
         referenceTime: Date = Date()
     ) throws -> CommandEnvelope {
         let messageData = try JSONEncoder().encode(message)
@@ -102,8 +129,13 @@ public enum SecureChannel {
         let envelopeId = UUID()
         let timestampMs = Int64(referenceTime.timeIntervalSince1970 * 1000)
 
-        // 12-byte cryptographically secure random nonce
-        let nonce = AES.GCM.Nonce()
+        // 12-byte AES-GCM nonce: deterministic if nonceSalt is provided; CSPRNG random fallback otherwise
+        let nonce: AES.GCM.Nonce
+        if let salt = nonceSalt {
+            nonce = makeDeterministicNonce(salt: salt, sequenceNumber: sequenceNumber)
+        } else {
+            nonce = AES.GCM.Nonce()
+        }
         let nonceData = Data(nonce)
 
         // Build envelope with placeholder tag and signature to construct canonical AAD
@@ -167,6 +199,7 @@ public enum SecureChannel {
         sessionKey: SymmetricKey,
         trustedSenderPublicKeyHex: String,
         sequenceCounter: SequenceCounter,
+        expectedNonceSalt: Data? = nil,
         referenceTime: Date = Date()
     ) async throws -> CommandMessage {
         // 1. Check wire size bound
@@ -198,6 +231,14 @@ public enum SecureChannel {
               let signatureData = Data(hexString: envelope.signatureHex),
               let nonceData = Data(hexString: envelope.nonceHex) else {
             throw ChannelError.decryptionFailed
+        }
+
+        // 5b. Verify deterministic nonce construction if session salt is bound
+        if let salt = expectedNonceSalt {
+            let expectedNonce = makeDeterministicNonce(salt: salt, sequenceNumber: envelope.sequenceNumber)
+            guard Data(expectedNonce) == nonceData else {
+                throw ChannelError.decryptionFailed
+            }
         }
 
         let aad = envelope.associatedDataPayload

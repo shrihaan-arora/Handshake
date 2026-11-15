@@ -143,6 +143,89 @@ public final class HandshakeClient: Sendable {
 
     // MARK: - Command Dispatch
 
+    /// Performs mutual ephemeral P-256 ECDH session handshake over an active NWConnection.
+    public func performSessionHandshake(
+        connection: NWConnection,
+        trustedHostPublicKeyHex: String,
+        masterPSK: SymmetricKey?
+    ) async throws -> EstablishedSession {
+        let clientEphemeral = EphemeralKeyExchange()
+        let sessionId = UUID()
+        let initPlaceholder = SessionInitiation(
+            id: sessionId,
+            clientIdentity: clientIdentity.identity,
+            clientEphemeralPublicKeyHex: clientEphemeral.publicKeyHex
+        )
+        let sig = try clientIdentity.sign(data: initPlaceholder.signablePayload)
+        let sessionInit = SessionInitiation(
+            id: sessionId,
+            timestampMilliseconds: initPlaceholder.timestampMilliseconds,
+            clientIdentity: clientIdentity.identity,
+            clientEphemeralPublicKeyHex: clientEphemeral.publicKeyHex,
+            signatureHex: sig.hexString
+        )
+
+        // Send framed SessionInitiation
+        let initData = try JSONEncoder().encode(sessionInit)
+        try await NetworkFraming.send(data: initData, over: connection)
+
+        // Receive framed SessionResponse
+        let respBytes = try await NetworkFraming.receive(from: connection)
+
+        // Check if server rejected handshake
+        if let ack = try? JSONDecoder().decode(CommandAcknowledgment.self, from: respBytes) {
+            if case .rejected(let reason) = ack.status {
+                throw ClientError.commandRejected(reason)
+            }
+        }
+
+        let sessionResponse = try JSONDecoder().decode(SessionResponse.self, from: respBytes)
+
+        // Verify session ID match
+        guard sessionResponse.id == sessionId else {
+            throw ClientError.connectionFailed("Session handshake ID mismatch")
+        }
+
+        // Verify clock skew
+        guard HandshakeTime.isTimestampValid(sessionResponse.timestampMilliseconds) else {
+            throw ClientError.connectionFailed("Session response clock skew exceeded")
+        }
+
+        // Verify host identity matches trusted host public key
+        guard sessionResponse.hostIdentity.publicKeyHex.lowercased() == trustedHostPublicKeyHex.lowercased() else {
+            throw ClientError.connectionFailed("Session host public key does not match trusted peer")
+        }
+
+        // Verify host ECDSA signature
+        guard let hostSigData = Data(hexString: sessionResponse.signatureHex),
+              CryptoIdentity.verify(
+                signatureRaw: hostSigData,
+                for: sessionResponse.signablePayload,
+                publicKeyHex: sessionResponse.hostIdentity.publicKeyHex
+              ) else {
+            throw ClientError.invalidAcknowledgment
+        }
+
+        // Derive fresh session keys & deterministic nonce salts bound to master PSK
+        let sharedSecret = try clientEphemeral.computeSharedSecret(peerEphemeralPublicKeyHex: sessionResponse.hostEphemeralPublicKeyHex)
+        let transcript = sessionInit.signablePayload + sessionResponse.signablePayload
+        let keys = SessionKeyDerivation.deriveKeys(
+            sharedSecret: sharedSecret,
+            sessionId: sessionId,
+            transcript: transcript,
+            masterPSK: masterPSK
+        )
+
+        return EstablishedSession(
+            sessionId: sessionId,
+            peer: sessionResponse.hostIdentity,
+            clientToHostKey: keys.clientToHostKey,
+            hostToClientKey: keys.hostToClientKey,
+            clientToHostNonceSalt: keys.clientNonceSalt,
+            hostToClientNonceSalt: keys.hostNonceSalt
+        )
+    }
+
     /// Transmits an authenticated command to the specified Mac endpoint.
     /// Encrypts, signs, transmits, awaits verified acknowledgment, and releases the connection.
     public func sendCommand(
@@ -150,6 +233,7 @@ public final class HandshakeClient: Sendable {
         to endpoint: NWEndpoint,
         trustedHostPublicKeyHex: String,
         preSharedKeyHex: String? = nil,
+        useFreshSession: Bool = true,
         onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
     ) async throws -> CommandAcknowledgment {
         let connection = NWConnection(to: endpoint, using: .tcp)
@@ -164,40 +248,63 @@ public final class HandshakeClient: Sendable {
         onStateChange?(.connectingSecurely)
         try await connect(connection: connection, queue: queue, timeoutSeconds: 5.0)
 
-        // 2. Prepare CommandMessage
+        // 2. Resolve session keys: fresh ephemeral ECDH handshake or fallback
+        onStateChange?(.verifyingDevice)
+        let sessionKey: SymmetricKey
+        let nonceSalt: Data?
+
+        if useFreshSession {
+            let masterPSK: SymmetricKey?
+            if let hex = preSharedKeyHex, let data = Data(hexString: hex), data.count == 32 {
+                masterPSK = SymmetricKey(data: data)
+            } else {
+                masterPSK = nil
+            }
+            let session = try await performSessionHandshake(
+                connection: connection,
+                trustedHostPublicKeyHex: trustedHostPublicKeyHex,
+                masterPSK: masterPSK
+            )
+            sessionKey = session.clientToHostKey
+            nonceSalt = session.clientToHostNonceSalt
+            onStateChange?(.secureConnectionEstablished(peer: session.peer))
+        } else {
+            sessionKey = SecureChannel.resolveSessionKey(
+                preSharedKeyHex: preSharedKeyHex,
+                fallbackPublicKeyHex: clientIdentity.identity.publicKeyHex,
+                role: .clientToHost
+            )
+            nonceSalt = nil
+        }
+
+        // 3. Prepare CommandMessage
         let commandMessage = CommandMessage(
             command: commandType,
             timestamp: Date(),
             validityWindowSeconds: 30.0
         )
 
-        // 3. Resolve directional session key and seal envelope
-        onStateChange?(.verifyingDevice)
+        // 4. Seal envelope
         let seq = await sequenceCounter.nextOutgoing()
-        let sessionKey = SecureChannel.resolveSessionKey(
-            preSharedKeyHex: preSharedKeyHex,
-            fallbackPublicKeyHex: clientIdentity.identity.publicKeyHex,
-            role: .clientToHost
-        )
-
         let envelope = try SecureChannel.seal(
             message: commandMessage,
             sequenceNumber: seq,
             senderIdentity: clientIdentity,
             recipientPublicKeyHex: trustedHostPublicKeyHex,
-            sessionKey: sessionKey
+            sessionKey: sessionKey,
+            nonceSalt: nonceSalt
         )
 
-        // 4. Send framed envelope
+        // 5. Send framed envelope
         onStateChange?(.sendingCommand(commandType))
         let envelopeData = try JSONEncoder().encode(envelope)
         try await NetworkFraming.send(data: envelopeData, over: connection)
 
-        // 5. Receive framed acknowledgment
+        // 6. Receive framed acknowledgment
         let responseData = try await NetworkFraming.receive(from: connection)
         let ack = try JSONDecoder().decode(CommandAcknowledgment.self, from: responseData)
 
-        // 6. Verify Mac's digital signature over acknowledgment
+        // 7. Verify Mac's digital signature over acknowledgment
         guard let sigData = Data(hexString: ack.signatureHex),
               CryptoIdentity.verify(
                 signatureRaw: sigData,
@@ -208,7 +315,7 @@ public final class HandshakeClient: Sendable {
             throw ClientError.invalidAcknowledgment
         }
 
-        // 7. Two-Stage Sleep Handshake:
+        // 8. Two-Stage Sleep Handshake:
         if commandType == .sleep && (ack.status == .executed || ack.status == .received) {
             let receiptPlaceholder = CommandReceipt(
                 commandId: commandMessage.id,
@@ -225,7 +332,7 @@ public final class HandshakeClient: Sendable {
             try await NetworkFraming.send(data: receiptData, over: connection)
         }
 
-        // 8. Check execution status
+        // 9. Check execution status
         switch ack.status {
         case .received, .executed:
             onStateChange?(.commandAccepted(commandType))
@@ -245,6 +352,7 @@ public final class HandshakeClient: Sendable {
         to endpoint: NWEndpoint,
         trustedHost: DeviceIdentity,
         preSharedKeyHex: String? = nil,
+        useFreshSession: Bool = true,
         timeoutSeconds: TimeInterval = 5.0,
         onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
     ) async throws -> CommandSession {
@@ -253,13 +361,33 @@ public final class HandshakeClient: Sendable {
 
         onStateChange?(.connectingSecurely)
         try await connect(connection: connection, queue: queue, timeoutSeconds: timeoutSeconds)
-        onStateChange?(.secureConnectionEstablished(peer: trustedHost))
+
+        let establishedSession: EstablishedSession?
+        if useFreshSession {
+            let masterPSK: SymmetricKey?
+            if let hex = preSharedKeyHex, let data = Data(hexString: hex), data.count == 32 {
+                masterPSK = SymmetricKey(data: data)
+            } else {
+                masterPSK = nil
+            }
+            let session = try await performSessionHandshake(
+                connection: connection,
+                trustedHostPublicKeyHex: trustedHost.publicKeyHex,
+                masterPSK: masterPSK
+            )
+            establishedSession = session
+            onStateChange?(.secureConnectionEstablished(peer: session.peer))
+        } else {
+            establishedSession = nil
+            onStateChange?(.secureConnectionEstablished(peer: trustedHost))
+        }
 
         return CommandSession(
             connection: connection,
             clientIdentity: clientIdentity,
             trustedHost: trustedHost,
             preSharedKeyHex: preSharedKeyHex,
+            establishedSession: establishedSession,
             sequenceCounter: sequenceCounter,
             onStateChange: onStateChange
         )
@@ -309,6 +437,7 @@ public final class CommandSession: Sendable {
     private let clientIdentity: CryptoIdentity
     private let trustedHost: DeviceIdentity
     private let preSharedKeyHex: String?
+    private let establishedSession: EstablishedSession?
     private let sequenceCounter: SequenceCounter
     private let onStateChange: (@Sendable (ConnectionState) -> Void)?
 
@@ -317,6 +446,7 @@ public final class CommandSession: Sendable {
         clientIdentity: CryptoIdentity,
         trustedHost: DeviceIdentity,
         preSharedKeyHex: String?,
+        establishedSession: EstablishedSession? = nil,
         sequenceCounter: SequenceCounter,
         onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
     ) {
@@ -324,11 +454,19 @@ public final class CommandSession: Sendable {
         self.clientIdentity = clientIdentity
         self.trustedHost = trustedHost
         self.preSharedKeyHex = preSharedKeyHex
+        self.establishedSession = establishedSession
         self.sequenceCounter = sequenceCounter
         self.onStateChange = onStateChange
     }
 
     public func sendCommand(_ commandType: CommandType) async throws -> CommandAcknowledgment {
+        if let session = establishedSession {
+            guard !session.isExpired() else {
+                onStateChange?(.commandFailed(reason: "Cryptographic session expired"))
+                throw HandshakeClient.ClientError.connectionFailed("Session expired")
+            }
+        }
+
         let commandMessage = CommandMessage(
             command: commandType,
             timestamp: Date(),
@@ -336,18 +474,27 @@ public final class CommandSession: Sendable {
         )
 
         let seq = await sequenceCounter.nextOutgoing()
-        let sessionKey = SecureChannel.resolveSessionKey(
-            preSharedKeyHex: preSharedKeyHex,
-            fallbackPublicKeyHex: clientIdentity.identity.publicKeyHex,
-            role: .clientToHost
-        )
+        let sessionKey: SymmetricKey
+        let nonceSalt: Data?
+        if let session = establishedSession {
+            sessionKey = session.clientToHostKey
+            nonceSalt = session.clientToHostNonceSalt
+        } else {
+            sessionKey = SecureChannel.resolveSessionKey(
+                preSharedKeyHex: preSharedKeyHex,
+                fallbackPublicKeyHex: clientIdentity.identity.publicKeyHex,
+                role: .clientToHost
+            )
+            nonceSalt = nil
+        }
 
         let envelope = try SecureChannel.seal(
             message: commandMessage,
             sequenceNumber: seq,
             senderIdentity: clientIdentity,
             recipientPublicKeyHex: trustedHost.publicKeyHex,
-            sessionKey: sessionKey
+            sessionKey: sessionKey,
+            nonceSalt: nonceSalt
         )
 
         onStateChange?(.sendingCommand(commandType))

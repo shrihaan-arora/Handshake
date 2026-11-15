@@ -29,6 +29,7 @@ public actor HandshakeServer {
     private let trustStore: TrustStore
     private let initialSequenceCounter: SequenceCounter
     private var peerSequenceCounters: [String: SequenceCounter] = [:]
+    private var recentSessionIds: Set<UUID> = []
     private var initialCounterAssigned: Bool = false
     private let executionHandler: CommandExecutionHandler
     #if os(macOS)
@@ -135,7 +136,19 @@ public actor HandshakeServer {
         listener = nil
         running = false
         peerSequenceCounters.removeAll()
+        recentSessionIds.removeAll()
         initialCounterAssigned = false
+    }
+
+    private func validateAndRecordSessionId(_ id: UUID) -> Bool {
+        if recentSessionIds.contains(id) {
+            return false
+        }
+        recentSessionIds.insert(id)
+        if recentSessionIds.count > 1000 {
+            recentSessionIds.removeFirst()
+        }
+        return true
     }
 
     private func counter(for peerPublicKeyHex: String) -> SequenceCounter {
@@ -167,14 +180,115 @@ public actor HandshakeServer {
                 connection.cancel()
             }
 
+            var activeSession: EstablishedSession? = nil
+
             while true {
                 do {
-                    // 1. Read framed envelope packet
+                    // 1. Read framed envelope or session handshake packet
                     let rawData: Data
                     do {
                         rawData = try await NetworkFraming.receive(from: connection)
                     } catch NetworkFraming.FramingError.connectionClosed {
                         break // Clean disconnect from client
+                    }
+
+                    // Check if incoming frame is a fresh SessionInitiation handshake
+                    if activeSession == nil, let sessionInit = try? JSONDecoder().decode(SessionInitiation.self, from: rawData) {
+                        // 1a. Validate clock skew
+                        guard HandshakeTime.isTimestampValid(sessionInit.timestampMilliseconds) else {
+                            try await sendRejection(
+                                commandId: sessionInit.id,
+                                reason: "Session initiation failed: clock skew exceeded.",
+                                over: connection
+                            )
+                            break
+                        }
+
+                        // 1b. Validate anti-replay on sessionId
+                        guard self.validateAndRecordSessionId(sessionInit.id) else {
+                            try await sendRejection(
+                                commandId: sessionInit.id,
+                                reason: "Session initiation failed: replayed session identifier.",
+                                over: connection
+                            )
+                            break
+                        }
+
+                        // 1c. Validate client identity in TrustStore
+                        guard let trustRecord = await trustStore.getRecord(publicKeyHex: sessionInit.clientIdentity.publicKeyHex) else {
+                            try await sendRejection(
+                                commandId: sessionInit.id,
+                                reason: "Device is not paired or recognized.",
+                                over: connection
+                            )
+                            break
+                        }
+
+                        guard !trustRecord.isRevoked else {
+                            try await sendRejection(
+                                commandId: sessionInit.id,
+                                reason: "Device trust has been revoked.",
+                                over: connection
+                            )
+                            break
+                        }
+
+                        // 1d. Verify client digital signature over sessionInit
+                        guard let clientSigData = Data(hexString: sessionInit.signatureHex),
+                              CryptoIdentity.verify(
+                                signatureRaw: clientSigData,
+                                for: sessionInit.signablePayload,
+                                publicKeyHex: trustRecord.peer.publicKeyHex
+                              ) else {
+                            try await sendRejection(
+                                commandId: sessionInit.id,
+                                reason: "Session initiation failed: invalid client cryptographic signature.",
+                                over: connection
+                            )
+                            break
+                        }
+
+                        // 1e. Generate fresh host ephemeral P-256 key pair
+                        let hostEphemeral = EphemeralKeyExchange()
+                        let responsePlaceholder = SessionResponse(
+                            id: sessionInit.id,
+                            hostIdentity: self.hostIdentity.identity,
+                            hostEphemeralPublicKeyHex: hostEphemeral.publicKeyHex
+                        )
+                        let hostSig = try self.hostIdentity.sign(data: responsePlaceholder.signablePayload)
+                        let sessionResponse = SessionResponse(
+                            id: sessionInit.id,
+                            timestampMilliseconds: responsePlaceholder.timestampMilliseconds,
+                            hostIdentity: self.hostIdentity.identity,
+                            hostEphemeralPublicKeyHex: hostEphemeral.publicKeyHex,
+                            signatureHex: hostSig.hexString
+                        )
+
+                        // 1f. Transmit framed SessionResponse to client
+                        let respData = try JSONEncoder().encode(sessionResponse)
+                        try await NetworkFraming.send(data: respData, over: connection)
+
+                        // 1g. Derive fresh session keys & deterministic nonce salts bound to master PSK
+                        let sharedSecret = try hostEphemeral.computeSharedSecret(peerEphemeralPublicKeyHex: sessionInit.clientEphemeralPublicKeyHex)
+                        let transcript = sessionInit.signablePayload + sessionResponse.signablePayload
+                        let masterPSK = await trustStore.retrievePreSharedKey(forPeerId: trustRecord.id)
+
+                        let keys = SessionKeyDerivation.deriveKeys(
+                            sharedSecret: sharedSecret,
+                            sessionId: sessionInit.id,
+                            transcript: transcript,
+                            masterPSK: masterPSK
+                        )
+
+                        activeSession = EstablishedSession(
+                            sessionId: sessionInit.id,
+                            peer: trustRecord.peer,
+                            clientToHostKey: keys.clientToHostKey,
+                            hostToClientKey: keys.hostToClientKey,
+                            clientToHostNonceSalt: keys.clientNonceSalt,
+                            hostToClientNonceSalt: keys.hostNonceSalt
+                        )
+                        continue
                     }
 
                     let envelope = try JSONDecoder().decode(CommandEnvelope.self, from: rawData)
@@ -198,12 +312,39 @@ public actor HandshakeServer {
                         break
                     }
 
-                    // 3. Authenticate and decrypt envelope with directional session key
-                    let sessionKey = SecureChannel.resolveSessionKey(
-                        preSharedKeyHex: trustRecord.preSharedKeyHex,
-                        fallbackPublicKeyHex: envelope.senderPublicKeyHex,
-                        role: .clientToHost
-                    )
+                    // 3. Authenticate and decrypt envelope with fresh session key (or fallback)
+                    let sessionKey: SymmetricKey
+                    let expectedNonceSalt: Data?
+
+                    if let session = activeSession {
+                        guard !session.isExpired() else {
+                            try await sendRejection(
+                                commandId: envelope.id,
+                                reason: "Session expired. Please reconnect.",
+                                over: connection
+                            )
+                            break
+                        }
+                        guard envelope.senderPublicKeyHex.lowercased() == session.peer.publicKeyHex.lowercased() else {
+                            try await sendRejection(
+                                commandId: envelope.id,
+                                reason: "Sender does not match active session peer.",
+                                over: connection
+                            )
+                            break
+                        }
+                        sessionKey = session.clientToHostKey
+                        expectedNonceSalt = session.clientToHostNonceSalt
+                    } else {
+                        let masterPSK = await trustStore.retrievePreSharedKey(forPeerId: trustRecord.id)
+                        let pskHex = masterPSK?.withUnsafeBytes { Data($0).hexString } ?? trustRecord.preSharedKeyHex
+                        sessionKey = SecureChannel.resolveSessionKey(
+                            preSharedKeyHex: pskHex,
+                            fallbackPublicKeyHex: envelope.senderPublicKeyHex,
+                            role: .clientToHost
+                        )
+                        expectedNonceSalt = nil
+                    }
 
                     let peerCounter = self.counter(for: trustRecord.peer.publicKeyHex)
                     let message: CommandMessage
@@ -212,7 +353,8 @@ public actor HandshakeServer {
                             envelope: envelope,
                             sessionKey: sessionKey,
                             trustedSenderPublicKeyHex: trustRecord.peer.publicKeyHex,
-                            sequenceCounter: peerCounter
+                            sequenceCounter: peerCounter,
+                            expectedNonceSalt: expectedNonceSalt
                         )
                     } catch {
                         try await sendRejection(
