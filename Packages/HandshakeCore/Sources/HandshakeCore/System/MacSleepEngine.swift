@@ -25,10 +25,16 @@ public final class MacSleepEngine: Sendable {
         }
     }
 
-    public init() {}
+    public typealias SleepTriggerAction = @Sendable () -> SleepExecutionState
+    private let customSleepTrigger: SleepTriggerAction?
+
+    public init(customSleepTrigger: SleepTriggerAction? = nil) {
+        self.customSleepTrigger = customSleepTrigger
+    }
 
     /// Checks if system sleep is supported by the Mac hardware and power management subsystem.
     public func isSleepSupported() -> Bool {
+        if customSleepTrigger != nil { return true }
         return IOPMSleepEnabled() != 0
     }
 
@@ -36,6 +42,10 @@ public final class MacSleepEngine: Sendable {
     /// This method must strictly be invoked AFTER the signed acknowledgment has been transmitted
     /// and the network buffers have been allowed to flush.
     public func triggerSleep() -> SleepExecutionState {
+        if let customTrigger = customSleepTrigger {
+            return customTrigger()
+        }
+
         guard isSleepSupported() else {
             return .sleepNotSupported
         }

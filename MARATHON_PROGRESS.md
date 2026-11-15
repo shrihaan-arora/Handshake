@@ -21,7 +21,8 @@
 | **G** | Optional CoreBluetooth Transport | BLE Central (iPhone) / Peripheral (Mac) fallback transport | **COMPLETED** | `9d80eb9` |
 | **H** | Security Regression & Performance Benchmarking | Known-answer vectors, fuzzing, profiling, latency | **COMPLETED** | `46b78ec` |
 | **I** | Integration Testing & V1 Release Preparation | Acceptance verification across all 18 criteria | **COMPLETED** | `407e06f` |
-| **V1-Val**| Real-World Validation & Security Assurance | Lock screen grace period fail-closed, two-stage sleep receipt, adversarial tests, physical hardware audit | **COMPLETED** | Local Branch |
+| **V1-Val**| Real-World Validation & Security Assurance | Lock screen grace period fail-closed, two-stage sleep receipt, adversarial tests, physical hardware audit | **COMPLETED** | `087009a` |
+| **Mission**| Secure Local Communication Engineering Mission | Local Wi-Fi Bonjour TXT disambiguation, directional AEAD session keys, per-peer replay isolation, 17 adversarial network tests | **COMPLETED** | Local Branch |
 
 ---
 
@@ -42,4 +43,9 @@
 - **2026-11-15 05:06:00:** Corrected transport honesty disclosures (Application-level AEAD over TCP, not TLS) and dynamic `isHardwareBacked` badging in `SecurityShieldBadge.swift` and `SecurityAuditView.swift`.
 - **2026-11-15 05:07:00:** Audited physical iPhone 16e (`00008140-00042C3902F2801C`). Compilation for physical arm64 succeeded; physical installation blocked by expired personal provisioning profile (`0xe800801c`), strictly classified as `BLOCKED (Deployment) / PASS (Compilation)`.
 - **2026-11-15 05:08:00:** Added `CryptoNegativeTests.swift` (adversarial bit flips, identity spoofing, wrong keys, clock skew, revoked device rejection, two-stage sleep receipt). All 85 unit tests passing with zero failures in 1.459s.
-- **2026-11-15 05:11:00:** Authored all 5 new documentation deliverables and updated all tracking documents.
+- **2026-11-15 05:11:00:** Authored all 5 new documentation deliverables and updated all tracking documents (commit `087009a`).
+- **2026-11-15 05:30:00:** Commenced Secure Local Communication Engineering Mission on branch `mission/secure-local-communication`.
+- **2026-11-15 05:35:00:** Upgraded `ConnectionState.swift` and `StatusPillView.swift` to support full Section 11 verified progression states. Added `preSharedKeyHex` (256-bit Pairwise Master Key) to `TrustRecord.swift` and derived directional session keys in `PairingEngine.swift` and `SecureChannel.swift` (SEC-15).
+- **2026-11-15 05:36:00:** Added Bonjour TXT record advertisement (`v=1`, `id=<UUID>`, `pk=<shortFingerprint>`) and targeted discovery disambiguation in `HandshakeClient.swift` (SEC-16).
+- **2026-11-15 05:37:00:** Implemented per-peer sequence counter state dictionaries in `HandshakeServer` (SEC-17), enabling concurrent paired client execution without replay collision. Added `CommandSession` for persistent multi-message connections.
+- **2026-11-15 05:40:00:** Authored comprehensive 17-scenario adversarial network testing suite in `AdversarialNetworkTests.swift`. All 102 package unit tests passing with zero failures. Both native application targets compile cleanly with zero compiler warnings.

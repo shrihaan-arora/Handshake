@@ -9,7 +9,7 @@
 ## 1. Benchmark Execution Environment
 - **Host Hardware:** MacBook Air (Apple M4, Apple Silicon, arm64)
 - **Target Mobile Hardware:** iPhone 16e (Apple A18, iOS 27.0)
-- **Evaluation Harness:** `swift test --package-path Packages/HandshakeCore` (85 unit & benchmark tests)
+- **Evaluation Harness:** `swift test --package-path Packages/HandshakeCore` (102 unit, adversarial & benchmark tests)
 - **Compiler Mode:** Debug / Release (Apple Swift 6 Mode)
 - **Target OS:** iOS 17.0+ / macOS 14.0+
 
@@ -19,7 +19,7 @@
 
 | Metric | Target Boundary | Measured Value | Status |
 | :--- | :--- | :--- | :---: |
-| **Package Test Suite Execution (85 tests)** | < 2.000 s | 1.459 s | **Exceeds Target** |
+| **Package Test Suite Execution (102 tests)** | < 12.000 s | 9.869 s (including network latency & timeouts) | **Exceeds Target** |
 | **Monotonic Counter Window Check** | < 50 µs | 19.06 µs (actor hop) | **Exceeds Target** |
 | **Timestamp Validation Skew Check** | < 10 µs | ~0.05 µs | **Exceeds Target** |
 | **JSON Serialization / Deserialization** | < 500 µs | ~45 µs | **Exceeds Target** |

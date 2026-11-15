@@ -27,12 +27,36 @@ public actor HandshakeServer {
     public nonisolated let serviceType: String
     private let hostIdentity: CryptoIdentity
     private let trustStore: TrustStore
-    private let sequenceCounter: SequenceCounter
+    private let initialSequenceCounter: SequenceCounter
+    private var peerSequenceCounters: [String: SequenceCounter] = [:]
+    private var initialCounterAssigned: Bool = false
     private let executionHandler: CommandExecutionHandler
+    #if os(macOS)
+    private let sleepEngine: MacSleepEngine
+    #endif
 
     private var listener: NWListener?
     private var running: Bool = false
 
+#if os(macOS)
+    public init(
+        port: UInt16 = 5894,
+        serviceType: String = "_handshake._tcp",
+        hostIdentity: CryptoIdentity,
+        trustStore: TrustStore,
+        sequenceCounter: SequenceCounter = SequenceCounter(),
+        sleepEngine: MacSleepEngine = MacSleepEngine(),
+        executionHandler: @escaping CommandExecutionHandler
+    ) {
+        self.port = port
+        self.serviceType = serviceType
+        self.hostIdentity = hostIdentity
+        self.trustStore = trustStore
+        self.initialSequenceCounter = sequenceCounter
+        self.sleepEngine = sleepEngine
+        self.executionHandler = executionHandler
+    }
+#else
     public init(
         port: UInt16 = 5894,
         serviceType: String = "_handshake._tcp",
@@ -45,9 +69,10 @@ public actor HandshakeServer {
         self.serviceType = serviceType
         self.hostIdentity = hostIdentity
         self.trustStore = trustStore
-        self.sequenceCounter = sequenceCounter
+        self.initialSequenceCounter = sequenceCounter
         self.executionHandler = executionHandler
     }
+#endif
 
     // MARK: - Lifecycle
 
@@ -64,10 +89,16 @@ public actor HandshakeServer {
             let nwPort = NWEndpoint.Port(rawValue: port) ?? NWEndpoint.Port(integerLiteral: 5894)
             let newListener = try NWListener(using: params, on: nwPort)
 
-            // Bonjour service advertisement
+            // Bonjour service advertisement with descriptive metadata
+            var txtRecord = NWTXTRecord()
+            txtRecord["v"] = "1"
+            txtRecord["id"] = hostIdentity.identity.id.uuidString
+            txtRecord["pk"] = hostIdentity.identity.shortFingerprint
+
             newListener.service = NWListener.Service(
                 name: hostIdentity.identity.displayName,
-                type: serviceType
+                type: serviceType,
+                txtRecord: txtRecord
             )
 
             newListener.newConnectionHandler = { [weak self] connection in
@@ -103,6 +134,22 @@ public actor HandshakeServer {
         listener?.cancel()
         listener = nil
         running = false
+        peerSequenceCounters.removeAll()
+        initialCounterAssigned = false
+    }
+
+    private func counter(for peerPublicKeyHex: String) -> SequenceCounter {
+        if let existing = peerSequenceCounters[peerPublicKeyHex] {
+            return existing
+        }
+        if !initialCounterAssigned {
+            initialCounterAssigned = true
+            peerSequenceCounters[peerPublicKeyHex] = initialSequenceCounter
+            return initialSequenceCounter
+        }
+        let freshCounter = SequenceCounter()
+        peerSequenceCounters[peerPublicKeyHex] = freshCounter
+        return freshCounter
     }
 
     public var isRunning: Bool {
@@ -120,86 +167,100 @@ public actor HandshakeServer {
                 connection.cancel()
             }
 
-            do {
-                // 1. Read framed envelope packet
-                let rawData = try await NetworkFraming.receive(from: connection)
-                let envelope = try JSONDecoder().decode(CommandEnvelope.self, from: rawData)
-
-                // 2. Validate sender against Trust Store
-                guard let trustRecord = await trustStore.getRecord(publicKeyHex: envelope.senderPublicKeyHex) else {
-                    try await sendRejection(
-                        commandId: envelope.id,
-                        reason: "Device is not paired or recognized.",
-                        over: connection
-                    )
-                    return
-                }
-
-                guard !trustRecord.isRevoked else {
-                    try await sendRejection(
-                        commandId: envelope.id,
-                        reason: "Device trust has been revoked.",
-                        over: connection
-                    )
-                    return
-                }
-
-                // 3. Authenticate and decrypt envelope
-                let senderKeyData = Data(hexString: envelope.senderPublicKeyHex) ?? Data()
-                let sessionKey = SymmetricKey(data: SHA256.hash(data: senderKeyData))
-
-                let message: CommandMessage
+            while true {
                 do {
-                    message = try await SecureChannel.open(
-                        envelope: envelope,
-                        sessionKey: sessionKey,
-                        trustedSenderPublicKeyHex: trustRecord.peer.publicKeyHex,
-                        sequenceCounter: sequenceCounter
+                    // 1. Read framed envelope packet
+                    let rawData: Data
+                    do {
+                        rawData = try await NetworkFraming.receive(from: connection)
+                    } catch NetworkFraming.FramingError.connectionClosed {
+                        break // Clean disconnect from client
+                    }
+
+                    let envelope = try JSONDecoder().decode(CommandEnvelope.self, from: rawData)
+
+                    // 2. Validate sender against Trust Store
+                    guard let trustRecord = await trustStore.getRecord(publicKeyHex: envelope.senderPublicKeyHex) else {
+                        try await sendRejection(
+                            commandId: envelope.id,
+                            reason: "Device is not paired or recognized.",
+                            over: connection
+                        )
+                        break
+                    }
+
+                    guard !trustRecord.isRevoked else {
+                        try await sendRejection(
+                            commandId: envelope.id,
+                            reason: "Device trust has been revoked.",
+                            over: connection
+                        )
+                        break
+                    }
+
+                    // 3. Authenticate and decrypt envelope with directional session key
+                    let sessionKey = SecureChannel.resolveSessionKey(
+                        preSharedKeyHex: trustRecord.preSharedKeyHex,
+                        fallbackPublicKeyHex: envelope.senderPublicKeyHex,
+                        role: .clientToHost
                     )
+
+                    let peerCounter = self.counter(for: trustRecord.peer.publicKeyHex)
+                    let message: CommandMessage
+                    do {
+                        message = try await SecureChannel.open(
+                            envelope: envelope,
+                            sessionKey: sessionKey,
+                            trustedSenderPublicKeyHex: trustRecord.peer.publicKeyHex,
+                            sequenceCounter: peerCounter
+                        )
+                    } catch {
+                        try await sendRejection(
+                            commandId: envelope.id,
+                            reason: "Authentication failed: \(error.localizedDescription)",
+                            over: connection
+                        )
+                        break
+                    }
+
+                    // 4. Verify command type is authorized in trust record
+                    guard trustRecord.authorizedCapabilities.contains(message.command) else {
+                        try await sendRejection(
+                            commandId: envelope.id,
+                            reason: "Command \(message.command.displayName) not authorized for this device.",
+                            over: connection
+                        )
+                        continue
+                    }
+
+                    // 5. Update last seen timestamp
+                    try? await trustStore.updateLastSeen(id: trustRecord.id)
+
+                    // 6. Execute authorized command on host Mac
+                    let status = await executionHandler(message, trustRecord.peer)
+
+                    // 7. Send signed acknowledgment
+                    let ack = try makeAcknowledgment(commandId: message.id, status: status)
+                    let ackData = try JSONEncoder().encode(ack)
+                    try await NetworkFraming.send(data: ackData, over: connection)
+
+                    // 8. Orderly two-stage sleep processing:
+                    // Guarantee the client receives acknowledgment before sleep enters power-down
+                    if message.command == .sleep, case .executed = status {
+                        #if os(macOS)
+                        await awaitReceiptAndSleep(
+                            over: connection,
+                            expectedCommandId: message.id,
+                            expectedClient: trustRecord.peer
+                        )
+                        #endif
+                        break
+                    }
+
                 } catch {
-                    try await sendRejection(
-                        commandId: envelope.id,
-                        reason: "Authentication failed: \(error.localizedDescription)",
-                        over: connection
-                    )
-                    return
+                    // Connection error or malformed frame: fail closed and terminate connection
+                    break
                 }
-
-                // 4. Verify command type is authorized in trust record
-                guard trustRecord.authorizedCapabilities.contains(message.command) else {
-                    try await sendRejection(
-                        commandId: envelope.id,
-                        reason: "Command \(message.command.displayName) not authorized for this device.",
-                        over: connection
-                    )
-                    return
-                }
-
-                // 5. Update last seen timestamp
-                try? await trustStore.updateLastSeen(id: trustRecord.id)
-
-                // 6. Execute authorized command on host Mac
-                let status = await executionHandler(message, trustRecord.peer)
-
-                // 7. Send signed acknowledgment
-                let ack = try makeAcknowledgment(commandId: message.id, status: status)
-                let ackData = try JSONEncoder().encode(ack)
-                try await NetworkFraming.send(data: ackData, over: connection)
-
-                // 8. Orderly two-stage sleep processing:
-                // Guarantee the client receives acknowledgment before sleep enters power-down
-                if message.command == .sleep, case .executed = status {
-                    #if os(macOS)
-                    await awaitReceiptAndSleep(
-                        over: connection,
-                        expectedCommandId: message.id,
-                        expectedClient: trustRecord.peer
-                    )
-                    #endif
-                }
-
-            } catch {
-                // Connection error or malformed frame: fail closed
             }
         }
     }
@@ -244,7 +305,7 @@ public actor HandshakeServer {
             group.cancelAll()
         }
 
-        _ = MacSleepEngine().triggerSleep()
+        _ = sleepEngine.triggerSleep()
     }
     #endif
 

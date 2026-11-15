@@ -38,15 +38,14 @@ public struct StatusPillView: View {
 
     private var indicatorColor: Color {
         switch state {
-        case .connected:
+        case .connected, .secureConnectionEstablished, .commandAccepted:
             return HandshakeTheme.Colors.connected
-        case .connecting, .discovering:
+        case .connecting, .discovering, .macFound, .connectingSecurely, .verifyingDevice, .sendingCommand:
             return HandshakeTheme.Colors.connecting
         case .disconnected:
             return HandshakeTheme.Colors.disconnected
-        case .failed:
+        case .failed, .commandFailed, .macUnavailable:
             return HandshakeTheme.Colors.destructive
         }
     }
 }
-

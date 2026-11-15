@@ -170,7 +170,7 @@ public struct iPhoneDashboardView: View {
                         Image(systemName: "checkmark.seal")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text("Zero Cloud • Direct Peer TLS & BLE Transport")
+                        Text("Zero Cloud • Direct Local Wi-Fi & BLE Transport")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

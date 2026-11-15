@@ -40,6 +40,49 @@ public enum SecureChannel {
         }
     }
 
+    // MARK: - Directional Session Keys
+
+    public enum DirectionalRole: Sendable {
+        case clientToHost
+        case hostToClient
+    }
+
+    /// Derives directional session keys from a 256-bit pre-shared master key.
+    public static func deriveDirectionalKey(
+        from psk: SymmetricKey,
+        role: DirectionalRole
+    ) -> SymmetricKey {
+        let roleInfo: String
+        switch role {
+        case .clientToHost:
+            roleInfo = "Handshake-v1-Directional-ClientToHost"
+        case .hostToClient:
+            roleInfo = "Handshake-v1-Directional-HostToClient"
+        }
+        return HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: psk,
+            salt: "Handshake-Session-Salt-v1".data(using: .utf8)!,
+            info: roleInfo.data(using: .utf8)!,
+            outputByteCount: 32
+        )
+    }
+
+    /// Resolves session key: if preSharedKeyHex is present, derives directional key;
+    /// otherwise falls back to SHA256 of the public key hex for compatibility.
+    public static func resolveSessionKey(
+        preSharedKeyHex: String?,
+        fallbackPublicKeyHex: String,
+        role: DirectionalRole
+    ) -> SymmetricKey {
+        if let pskHex = preSharedKeyHex,
+           let pskData = Data(hexString: pskHex),
+           pskData.count == 32 {
+            return deriveDirectionalKey(from: SymmetricKey(data: pskData), role: role)
+        }
+        let fallbackData = Data(hexString: fallbackPublicKeyHex) ?? Data()
+        return SymmetricKey(data: SHA256.hash(data: fallbackData))
+    }
+
     // MARK: - Encryption / Sealing
 
     /// Encrypts and cryptographically signs a `CommandMessage` into a zero-trust `CommandEnvelope`.

@@ -191,13 +191,26 @@ public actor HostPairingSession {
         // Mark consumed (Single-use enforcement)
         self.isConsumed = true
 
+        // Derive master PSK from mutual ECDH shared secret and transcript
+        var pskHex: String? = nil
+        if let sharedSecret = self.sharedSecret {
+            let psk = sharedSecret.hkdfDerivedSymmetricKey(
+                using: SHA256.self,
+                salt: invitation.nonce.data(using: .utf8) ?? Data(),
+                sharedInfo: "Handshake-Pairing-PSK-v1".data(using: .utf8)! + transcript,
+                outputByteCount: 32
+            )
+            pskHex = psk.withUnsafeBytes { Data($0).hexString }
+        }
+
         // Establish and persist trust record
         let trustRecord = TrustRecord(
             peer: clientIdentity,
             pairedAt: Date(),
             lastSeenAt: Date(),
             isRevoked: false,
-            authorizedCapabilities: [.lockScreen, .sleep]
+            authorizedCapabilities: [.lockScreen, .sleep],
+            preSharedKeyHex: pskHex
         )
         try await trustStore.addOrUpdate(trustRecord)
 
@@ -347,13 +360,26 @@ public actor ClientPairingSession {
             throw PairingError.transcriptVerificationFailed
         }
 
+        // Derive matching master PSK on iPhone
+        var pskHex: String? = nil
+        if let sharedSecret = self.sharedSecret {
+            let psk = sharedSecret.hkdfDerivedSymmetricKey(
+                using: SHA256.self,
+                salt: invitation.nonce.data(using: .utf8) ?? Data(),
+                sharedInfo: "Handshake-Pairing-PSK-v1".data(using: .utf8)! + transcript,
+                outputByteCount: 32
+            )
+            pskHex = psk.withUnsafeBytes { Data($0).hexString }
+        }
+
         // Create and store host trust record on iPhone
         let trustRecord = TrustRecord(
             peer: invitation.hostIdentity,
             pairedAt: Date(),
             lastSeenAt: Date(),
             isRevoked: false,
-            authorizedCapabilities: [.lockScreen, .sleep]
+            authorizedCapabilities: [.lockScreen, .sleep],
+            preSharedKeyHex: pskHex
         )
         try await trustStore.addOrUpdate(trustRecord)
         return trustRecord

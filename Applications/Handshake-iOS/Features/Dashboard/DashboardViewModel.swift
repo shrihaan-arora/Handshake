@@ -16,6 +16,7 @@ public final class DashboardViewModel: ObservableObject {
 
     private var clientIdentity: CryptoIdentity?
     private let trustStore: TrustStore
+    private var activeTrustRecord: TrustRecord?
     private let sequenceCounter = SequenceCounter()
     private var client: HandshakeClient?
 
@@ -43,6 +44,7 @@ public final class DashboardViewModel: ObservableObject {
 
             let records = await trustStore.allRecords()
             if let activeRecord = records.first(where: { !$0.isRevoked }) {
+                self.activeTrustRecord = activeRecord
                 self.pairedMac = activeRecord.peer
                 self.securityStatus = SecurityStatus(
                     trustLevel: .paired,
@@ -54,6 +56,7 @@ public final class DashboardViewModel: ObservableObject {
                     lastAuditedDate: Date()
                 )
             } else {
+                self.activeTrustRecord = nil
                 self.pairedMac = nil
                 self.securityStatus = SecurityStatus(
                     trustLevel: .unverified,
@@ -82,23 +85,45 @@ public final class DashboardViewModel: ObservableObject {
         }
 
         isExecutingCommand = true
-        connectionState = .connecting(transport: .localWiFi)
+        connectionState = .discovering
 
         Task {
             defer {
                 self.isExecutingCommand = false
-                self.connectionState = .disconnected
+                Task {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    await MainActor.run {
+                        if !self.isExecutingCommand {
+                            self.connectionState = .disconnected
+                        }
+                    }
+                }
             }
 
             do {
-                // 1. Discover Mac via local Bonjour
-                let endpoint = try await client.discoverMac(serviceType: "_handshake._tcp", timeoutSeconds: 3.5)
+                // 1. Discover Mac via local Bonjour targeting peer
+                let (endpoint, _) = try await client.discoverMac(
+                    serviceType: "_handshake._tcp",
+                    targetPeer: mac,
+                    timeoutSeconds: 3.5,
+                    onStateChange: { [weak self] state in
+                        Task { @MainActor in
+                            self?.connectionState = state
+                        }
+                    }
+                )
 
                 // 2. Dispatch authenticated lock command and verify signed acknowledgment
                 let ack = try await client.sendCommand(
                     .lockScreen,
                     to: endpoint,
-                    trustedHostPublicKeyHex: mac.publicKeyHex
+                    trustedHostPublicKeyHex: mac.publicKeyHex,
+                    preSharedKeyHex: self.activeTrustRecord?.preSharedKeyHex,
+                    onStateChange: { [weak self] state in
+                        Task { @MainActor in
+                            self?.connectionState = state
+                        }
+                    }
                 )
 
                 switch ack.status {
@@ -106,14 +131,36 @@ public final class DashboardViewModel: ObservableObject {
                     self.alertTitle = "Screen Locked"
                     self.alertMessage = "Successfully locked \(mac.displayName)."
                 case .rejected(let reason):
+                    self.connectionState = .commandFailed(reason: "Mac rejected command: \(reason)")
                     self.alertTitle = "Command Rejected"
                     self.alertMessage = "Mac rejected command: \(reason)"
                 case .failed(let reason):
+                    self.connectionState = .commandFailed(reason: "Mac failed to lock: \(reason)")
                     self.alertTitle = "Lock Failed"
                     self.alertMessage = "Mac failed to lock: \(reason)"
                 }
+            } catch let netErr as HandshakeClient.ClientError {
+                switch netErr {
+                case .macNotFound, .timeout:
+                    self.connectionState = .macUnavailable(reason: "Discovery timed out. Ensure your Mac is on the same Wi-Fi.")
+                    self.alertTitle = "Mac Unavailable"
+                    self.alertMessage = "Could not discover \(mac.displayName) on local Wi-Fi. Verify both devices are on the same network and Handshake is running on your Mac."
+                case .connectionFailed(let details):
+                    self.connectionState = .macUnavailable(reason: "Connection failed: \(details)")
+                    self.alertTitle = "Connection Failed"
+                    self.alertMessage = details
+                case .invalidAcknowledgment:
+                    self.connectionState = .commandFailed(reason: "Security failure: Mac response failed signature verification.")
+                    self.alertTitle = "Security Failure"
+                    self.alertMessage = "The response from \(mac.displayName) failed cryptographic verification."
+                default:
+                    self.connectionState = .commandFailed(reason: netErr.localizedDescription)
+                    self.alertTitle = "Command Failed"
+                    self.alertMessage = netErr.localizedDescription
+                }
             } catch {
-                self.alertTitle = "Connection Failed"
+                self.connectionState = .commandFailed(reason: error.localizedDescription)
+                self.alertTitle = "Command Failed"
                 self.alertMessage = error.localizedDescription
             }
         }
@@ -128,23 +175,45 @@ public final class DashboardViewModel: ObservableObject {
         }
 
         isExecutingCommand = true
-        connectionState = .connecting(transport: .localWiFi)
+        connectionState = .discovering
 
         Task {
             defer {
                 self.isExecutingCommand = false
-                self.connectionState = .disconnected
+                Task {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    await MainActor.run {
+                        if !self.isExecutingCommand {
+                            self.connectionState = .disconnected
+                        }
+                    }
+                }
             }
 
             do {
-                // 1. Discover Mac via local Bonjour
-                let endpoint = try await client.discoverMac(serviceType: "_handshake._tcp", timeoutSeconds: 3.5)
+                // 1. Discover Mac via local Bonjour targeting peer
+                let (endpoint, _) = try await client.discoverMac(
+                    serviceType: "_handshake._tcp",
+                    targetPeer: mac,
+                    timeoutSeconds: 3.5,
+                    onStateChange: { [weak self] state in
+                        Task { @MainActor in
+                            self?.connectionState = state
+                        }
+                    }
+                )
 
                 // 2. Dispatch authenticated sleep command and verify signed acknowledgment
                 let ack = try await client.sendCommand(
                     .sleep,
                     to: endpoint,
-                    trustedHostPublicKeyHex: mac.publicKeyHex
+                    trustedHostPublicKeyHex: mac.publicKeyHex,
+                    preSharedKeyHex: self.activeTrustRecord?.preSharedKeyHex,
+                    onStateChange: { [weak self] state in
+                        Task { @MainActor in
+                            self?.connectionState = state
+                        }
+                    }
                 )
 
                 switch ack.status {
@@ -152,14 +221,36 @@ public final class DashboardViewModel: ObservableObject {
                     self.alertTitle = "Sleep Initiated"
                     self.alertMessage = "\(mac.displayName) accepted sleep command. Mac will disconnect as it powers down."
                 case .rejected(let reason):
+                    self.connectionState = .commandFailed(reason: "Mac rejected sleep: \(reason)")
                     self.alertTitle = "Command Rejected"
                     self.alertMessage = "Mac rejected sleep: \(reason)"
                 case .failed(let reason):
+                    self.connectionState = .commandFailed(reason: "Mac failed to sleep: \(reason)")
                     self.alertTitle = "Sleep Failed"
                     self.alertMessage = "Mac failed to sleep: \(reason)"
                 }
+            } catch let netErr as HandshakeClient.ClientError {
+                switch netErr {
+                case .macNotFound, .timeout:
+                    self.connectionState = .macUnavailable(reason: "Discovery timed out. Ensure your Mac is on the same Wi-Fi.")
+                    self.alertTitle = "Mac Unavailable"
+                    self.alertMessage = "Could not discover \(mac.displayName) on local Wi-Fi. Verify both devices are on the same network and Handshake is running on your Mac."
+                case .connectionFailed(let details):
+                    self.connectionState = .macUnavailable(reason: "Connection failed: \(details)")
+                    self.alertTitle = "Connection Failed"
+                    self.alertMessage = details
+                case .invalidAcknowledgment:
+                    self.connectionState = .commandFailed(reason: "Security failure: Mac response failed signature verification.")
+                    self.alertTitle = "Security Failure"
+                    self.alertMessage = "The response from \(mac.displayName) failed cryptographic verification."
+                default:
+                    self.connectionState = .commandFailed(reason: netErr.localizedDescription)
+                    self.alertTitle = "Command Failed"
+                    self.alertMessage = netErr.localizedDescription
+                }
             } catch {
-                self.alertTitle = "Connection Failed"
+                self.connectionState = .commandFailed(reason: error.localizedDescription)
+                self.alertTitle = "Command Failed"
                 self.alertMessage = error.localizedDescription
             }
         }

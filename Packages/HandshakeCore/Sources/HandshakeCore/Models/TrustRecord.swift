@@ -11,6 +11,10 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
     public var revokedAt: Date?
     public var authorizedCapabilities: [CommandType]
 
+    /// Optional 256-bit pairwise master key derived from the mutual ECDH shared secret
+    /// during pairing. Used for directional session key derivation.
+    public var preSharedKeyHex: String?
+
     public init(
         id: UUID = UUID(),
         peer: DeviceIdentity,
@@ -18,7 +22,8 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
         lastSeenAt: Date = Date(),
         isRevoked: Bool = false,
         revokedAt: Date? = nil,
-        authorizedCapabilities: [CommandType] = CommandType.allCases
+        authorizedCapabilities: [CommandType] = CommandType.allCases,
+        preSharedKeyHex: String? = nil
     ) {
         self.id = id
         self.peer = peer
@@ -27,6 +32,7 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
         self.isRevoked = isRevoked
         self.revokedAt = revokedAt
         self.authorizedCapabilities = authorizedCapabilities
+        self.preSharedKeyHex = preSharedKeyHex
     }
 
     /// Mark the device as revoked, preventing future incoming commands.
@@ -37,4 +43,3 @@ public struct TrustRecord: Codable, Sendable, Identifiable, Equatable {
         }
     }
 }
-
