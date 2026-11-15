@@ -555,8 +555,9 @@ final class AdversarialNetworkTests: XCTestCase {
         let framed2 = try NetworkFraming.frame(data: JSONEncoder().encode(env2))
         let resp2 = try await sendRawData(framed2, to: port)
         let ack2 = try JSONDecoder().decode(CommandAcknowledgment.self, from: resp2)
-        // Handled cleanly by protocol
+        // Handled cleanly by protocol: duplicate message ID rejected fail-closed
         XCTAssertEqual(ack2.commandId, fixedId)
+        XCTAssertEqual(ack2.status, .rejected("Duplicate command request ID rejected."))
     }
 
     // MARK: - Test 10: Malformed Packet / Truncated JSON Framing

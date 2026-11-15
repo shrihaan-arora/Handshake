@@ -113,6 +113,13 @@ public struct iPhoneDashboardView: View {
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     }
 
+                    // MARK: - Command Execution Progress HUD
+                    if viewModel.commandStage != .idle {
+                        commandStageHUD
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                            .padding(.horizontal, HandshakeTheme.Spacing.md)
+                    }
+
                     // MARK: - Primary Control Actions (Large Buttons)
                     VStack(alignment: .leading, spacing: HandshakeTheme.Spacing.sm) {
                         Text("ACTIONS")
@@ -127,7 +134,9 @@ public struct iPhoneDashboardView: View {
                             subtitle: "Locks display and requires Touch ID / password",
                             systemImage: "lock.fill",
                             style: .primary,
-                            isEnabled: viewModel.pairedMac != nil
+                            isEnabled: viewModel.pairedMac != nil && !viewModel.isExecutingCommand,
+                            isLoading: viewModel.isExecutingCommand && viewModel.commandStage.command == .lockScreen,
+                            statusBadge: viewModel.commandStage.command == .lockScreen ? viewModel.commandStage.stageLabel : nil
                         ) {
                             viewModel.handleLockMacTapped()
                         }
@@ -138,7 +147,9 @@ public struct iPhoneDashboardView: View {
                             subtitle: "Puts system into low-power sleep mode",
                             systemImage: "moon.fill",
                             style: .secondary,
-                            isEnabled: viewModel.pairedMac != nil
+                            isEnabled: viewModel.pairedMac != nil && !viewModel.isExecutingCommand,
+                            isLoading: viewModel.isExecutingCommand && viewModel.commandStage.command == .sleep,
+                            statusBadge: viewModel.commandStage.command == .sleep ? viewModel.commandStage.stageLabel : nil
                         ) {
                             viewModel.handleSleepMacTapped()
                         }
@@ -197,6 +208,112 @@ public struct iPhoneDashboardView: View {
                     Text(message)
                 }
             }
+        }
+    }
+
+    // MARK: - Command Execution Stage HUD Banner
+
+    private var commandStageHUD: some View {
+        HandshakeCard {
+            HStack(spacing: HandshakeTheme.Spacing.md) {
+                switch viewModel.commandStage {
+                case .sending(let cmd):
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(1.1)
+                        .tint(.blue)
+                        .frame(width: 36, height: 36)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("Sending")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.blue)
+
+                            Text("• \(cmd.displayName)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("Transmitting authenticated wire envelope...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                case .executing(let cmd):
+                    Image(systemName: "gearshape.2.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.orange)
+                        .frame(width: 36, height: 36)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("Executing")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.orange)
+
+                            Text("• \(cmd.displayName)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("Invoking verified system action on Mac...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                case .completed(let cmd, let details):
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.green)
+                        .frame(width: 36, height: 36)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("Completed")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.green)
+
+                            Text("• \(cmd.displayName)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(details)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                case .failed(let cmd, let reason):
+                    Image(systemName: "xmark.octagon.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.red)
+                        .frame(width: 36, height: 36)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("Failed")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.red)
+
+                            Text("• \(cmd.displayName)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(reason)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                case .idle:
+                    EmptyView()
+                }
+
+                Spacer()
+            }
+            .padding(.vertical, HandshakeTheme.Spacing.xs)
         }
     }
 }

@@ -161,44 +161,49 @@ public final class MacDashboardViewModel: ObservableObject {
     // MARK: - Command Processing
 
     private func handleIncomingCommand(_ message: CommandMessage, from peer: DeviceIdentity) async -> CommandAcknowledgment.ExecutionStatus {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let timeStr = formatter.string(from: message.timestamp)
+        let shortId = String(message.id.uuidString.prefix(8))
+
         switch message.command {
         case .lockScreen:
-            recentAuditEvents.insert("Authenticated Lock command received from '\(peer.displayName)'", at: 0)
+            recentAuditEvents.insert("[\(timeStr)] Authenticated Lock received from '\(peer.displayName)' (#\(shortId))", at: 0)
             let result = await lockEngine.lockDisplay()
             switch result {
             case .confirmedLocked(let passwordRequiredImmediately):
                 if passwordRequiredImmediately {
-                    recentAuditEvents.insert("Display lock verified active (Password required immediately)", at: 0)
+                    recentAuditEvents.insert("[\(timeStr)] Display lock verified active (Password required immediately)", at: 0)
                     return .executed
                 } else {
-                    recentAuditEvents.insert("Lock rejected: Grace period is not immediate. Authentication not enforced.", at: 0)
+                    recentAuditEvents.insert("[\(timeStr)] Lock rejected: Grace period is not immediate. Authentication not enforced.", at: 0)
                     return .failed("Mac screen lock grace period is not immediate. Authentication not enforced.")
                 }
             case .invoked:
-                recentAuditEvents.insert("Display lock invoked via System Events", at: 0)
+                recentAuditEvents.insert("[\(timeStr)] Display lock invoked via System Events", at: 0)
                 return .executed
             case .failed(let reason):
-                recentAuditEvents.insert("Display lock failed: \(reason)", at: 0)
+                recentAuditEvents.insert("[\(timeStr)] Display lock failed: \(reason)", at: 0)
                 return .failed(reason)
             case .received, .authenticated:
                 return .received
             }
 
         case .sleep:
-            recentAuditEvents.insert("Authenticated Sleep command received from '\(peer.displayName)'. Preparing sleep...", at: 0)
+            recentAuditEvents.insert("[\(timeStr)] Authenticated Sleep received from '\(peer.displayName)' (#\(shortId))", at: 0)
             if !sleepEngine.isSleepSupported() {
-                recentAuditEvents.insert("Sleep rejected: hardware power management does not support sleep", at: 0)
+                recentAuditEvents.insert("[\(timeStr)] Sleep rejected: hardware power management does not support sleep", at: 0)
                 return .failed("System sleep not supported on this Mac")
             }
-            // Return .executed so HandshakeServer signs acknowledgment, flushes TCP socket, and invokes triggerSleep()
+            recentAuditEvents.insert("[\(timeStr)] Sleep prepared: signing acknowledgment and flushing transport", at: 0)
             return .executed
 
         case .ping:
-            recentAuditEvents.insert("Authenticated diagnostics ping from '\(peer.displayName)'", at: 0)
+            recentAuditEvents.insert("[\(timeStr)] Authenticated diagnostics ping from '\(peer.displayName)' (#\(shortId))", at: 0)
             return .executed
 
         case .queryStatus:
-            recentAuditEvents.insert("Status query from '\(peer.displayName)'", at: 0)
+            recentAuditEvents.insert("[\(timeStr)] Status query from '\(peer.displayName)' (#\(shortId))", at: 0)
             return .executed
         }
     }

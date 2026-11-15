@@ -14,6 +14,34 @@ public final class DashboardViewModel: ObservableObject {
     @Published public var alertTitle: String = "Handshake"
     @Published public var isExecutingCommand: Bool = false
 
+    public enum CommandExecutionStage: Equatable, Sendable {
+        case idle
+        case sending(CommandType)
+        case executing(CommandType)
+        case completed(CommandType, String)
+        case failed(CommandType, String)
+
+        public var stageLabel: String {
+            switch self {
+            case .idle: return ""
+            case .sending: return "Sending"
+            case .executing: return "Executing"
+            case .completed: return "Completed"
+            case .failed: return "Failed"
+            }
+        }
+
+        public var command: CommandType? {
+            switch self {
+            case .idle: return nil
+            case .sending(let cmd), .executing(let cmd), .completed(let cmd, _), .failed(let cmd, _):
+                return cmd
+            }
+        }
+    }
+
+    @Published public var commandStage: CommandExecutionStage = .idle
+
     private var clientIdentity: CryptoIdentity?
     private let trustStore: TrustStore
     private var activeTrustRecord: TrustRecord?
@@ -85,16 +113,18 @@ public final class DashboardViewModel: ObservableObject {
         }
 
         isExecutingCommand = true
+        commandStage = .sending(.lockScreen)
         connectionState = .discovering
 
         Task {
             defer {
                 self.isExecutingCommand = false
                 Task {
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    try? await Task.sleep(nanoseconds: 3_500_000_000)
                     await MainActor.run {
                         if !self.isExecutingCommand {
-                            self.connectionState = .disconnected
+                            self.commandStage = .idle
+                            self.connectionState = .connected(transport: .localWiFi, peer: mac)
                         }
                     }
                 }
@@ -109,6 +139,18 @@ public final class DashboardViewModel: ObservableObject {
                     onStateChange: { [weak self] state in
                         Task { @MainActor in
                             self?.connectionState = state
+                            switch state {
+                            case .sendingCommand(let cmd):
+                                self?.commandStage = .sending(cmd)
+                            case .executingCommand(let cmd):
+                                self?.commandStage = .executing(cmd)
+                            case .commandCompleted(let cmd):
+                                self?.commandStage = .completed(cmd, "Confirmed on Mac")
+                            case .commandFailed(let reason):
+                                self?.commandStage = .failed(.lockScreen, reason)
+                            default:
+                                break
+                            }
                         }
                     }
                 )
@@ -122,43 +164,66 @@ public final class DashboardViewModel: ObservableObject {
                     onStateChange: { [weak self] state in
                         Task { @MainActor in
                             self?.connectionState = state
+                            switch state {
+                            case .sendingCommand(let cmd):
+                                self?.commandStage = .sending(cmd)
+                            case .executingCommand(let cmd):
+                                self?.commandStage = .executing(cmd)
+                            case .commandCompleted(let cmd):
+                                self?.commandStage = .completed(cmd, "Confirmed on Mac")
+                            case .commandFailed(let reason):
+                                self?.commandStage = .failed(.lockScreen, reason)
+                            default:
+                                break
+                            }
                         }
                     }
                 )
 
                 switch ack.status {
                 case .executed, .received:
+                    self.commandStage = .completed(.lockScreen, "Display locked")
+                    self.connectionState = .commandCompleted(.lockScreen)
                     self.alertTitle = "Screen Locked"
                     self.alertMessage = "Successfully locked \(mac.displayName)."
                 case .rejected(let reason):
+                    self.commandStage = .failed(.lockScreen, "Rejected: \(reason)")
                     self.connectionState = .commandFailed(reason: "Mac rejected command: \(reason)")
                     self.alertTitle = "Command Rejected"
                     self.alertMessage = "Mac rejected command: \(reason)"
                 case .failed(let reason):
+                    self.commandStage = .failed(.lockScreen, reason)
                     self.connectionState = .commandFailed(reason: "Mac failed to lock: \(reason)")
                     self.alertTitle = "Lock Failed"
                     self.alertMessage = "Mac failed to lock: \(reason)"
                 }
             } catch let netErr as HandshakeClient.ClientError {
+                let errReason: String
                 switch netErr {
                 case .macNotFound, .timeout:
-                    self.connectionState = .macUnavailable(reason: "Discovery timed out. Ensure your Mac is on the same Wi-Fi.")
+                    errReason = "Discovery timed out. Ensure your Mac is on the same Wi-Fi."
+                    self.connectionState = .macUnavailable(reason: errReason)
                     self.alertTitle = "Mac Unavailable"
                     self.alertMessage = "Could not discover \(mac.displayName) on local Wi-Fi. Verify both devices are on the same network and Handshake is running on your Mac."
                 case .connectionFailed(let details):
-                    self.connectionState = .macUnavailable(reason: "Connection failed: \(details)")
+                    errReason = "Connection failed: \(details)"
+                    self.connectionState = .macUnavailable(reason: errReason)
                     self.alertTitle = "Connection Failed"
                     self.alertMessage = details
                 case .invalidAcknowledgment:
-                    self.connectionState = .commandFailed(reason: "Security failure: Mac response failed signature verification.")
+                    errReason = "Security failure: Mac response failed signature verification."
+                    self.connectionState = .commandFailed(reason: errReason)
                     self.alertTitle = "Security Failure"
                     self.alertMessage = "The response from \(mac.displayName) failed cryptographic verification."
                 default:
-                    self.connectionState = .commandFailed(reason: netErr.localizedDescription)
+                    errReason = netErr.localizedDescription
+                    self.connectionState = .commandFailed(reason: errReason)
                     self.alertTitle = "Command Failed"
-                    self.alertMessage = netErr.localizedDescription
+                    self.alertMessage = errReason
                 }
+                self.commandStage = .failed(.lockScreen, errReason)
             } catch {
+                self.commandStage = .failed(.lockScreen, error.localizedDescription)
                 self.connectionState = .commandFailed(reason: error.localizedDescription)
                 self.alertTitle = "Command Failed"
                 self.alertMessage = error.localizedDescription
@@ -175,15 +240,17 @@ public final class DashboardViewModel: ObservableObject {
         }
 
         isExecutingCommand = true
+        commandStage = .sending(.sleep)
         connectionState = .discovering
 
         Task {
             defer {
                 self.isExecutingCommand = false
                 Task {
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    try? await Task.sleep(nanoseconds: 3_500_000_000)
                     await MainActor.run {
                         if !self.isExecutingCommand {
+                            self.commandStage = .idle
                             self.connectionState = .disconnected
                         }
                     }
@@ -199,6 +266,18 @@ public final class DashboardViewModel: ObservableObject {
                     onStateChange: { [weak self] state in
                         Task { @MainActor in
                             self?.connectionState = state
+                            switch state {
+                            case .sendingCommand(let cmd):
+                                self?.commandStage = .sending(cmd)
+                            case .executingCommand(let cmd):
+                                self?.commandStage = .executing(cmd)
+                            case .commandCompleted(let cmd):
+                                self?.commandStage = .completed(cmd, "Confirmed on Mac")
+                            case .commandFailed(let reason):
+                                self?.commandStage = .failed(.sleep, reason)
+                            default:
+                                break
+                            }
                         }
                     }
                 )
@@ -212,43 +291,66 @@ public final class DashboardViewModel: ObservableObject {
                     onStateChange: { [weak self] state in
                         Task { @MainActor in
                             self?.connectionState = state
+                            switch state {
+                            case .sendingCommand(let cmd):
+                                self?.commandStage = .sending(cmd)
+                            case .executingCommand(let cmd):
+                                self?.commandStage = .executing(cmd)
+                            case .commandCompleted(let cmd):
+                                self?.commandStage = .completed(cmd, "Confirmed on Mac")
+                            case .commandFailed(let reason):
+                                self?.commandStage = .failed(.sleep, reason)
+                            default:
+                                break
+                            }
                         }
                     }
                 )
 
                 switch ack.status {
                 case .executed, .received:
+                    self.commandStage = .completed(.sleep, "Mac sleep initiated")
+                    self.connectionState = .commandCompleted(.sleep)
                     self.alertTitle = "Sleep Initiated"
                     self.alertMessage = "\(mac.displayName) accepted sleep command. Mac will disconnect as it powers down."
                 case .rejected(let reason):
+                    self.commandStage = .failed(.sleep, "Rejected: \(reason)")
                     self.connectionState = .commandFailed(reason: "Mac rejected sleep: \(reason)")
                     self.alertTitle = "Command Rejected"
                     self.alertMessage = "Mac rejected sleep: \(reason)"
                 case .failed(let reason):
+                    self.commandStage = .failed(.sleep, reason)
                     self.connectionState = .commandFailed(reason: "Mac failed to sleep: \(reason)")
                     self.alertTitle = "Sleep Failed"
                     self.alertMessage = "Mac failed to sleep: \(reason)"
                 }
             } catch let netErr as HandshakeClient.ClientError {
+                let errReason: String
                 switch netErr {
                 case .macNotFound, .timeout:
-                    self.connectionState = .macUnavailable(reason: "Discovery timed out. Ensure your Mac is on the same Wi-Fi.")
+                    errReason = "Discovery timed out. Ensure your Mac is on the same Wi-Fi."
+                    self.connectionState = .macUnavailable(reason: errReason)
                     self.alertTitle = "Mac Unavailable"
                     self.alertMessage = "Could not discover \(mac.displayName) on local Wi-Fi. Verify both devices are on the same network and Handshake is running on your Mac."
                 case .connectionFailed(let details):
-                    self.connectionState = .macUnavailable(reason: "Connection failed: \(details)")
+                    errReason = "Connection failed: \(details)"
+                    self.connectionState = .macUnavailable(reason: errReason)
                     self.alertTitle = "Connection Failed"
                     self.alertMessage = details
                 case .invalidAcknowledgment:
-                    self.connectionState = .commandFailed(reason: "Security failure: Mac response failed signature verification.")
+                    errReason = "Security failure: Mac response failed signature verification."
+                    self.connectionState = .commandFailed(reason: errReason)
                     self.alertTitle = "Security Failure"
                     self.alertMessage = "The response from \(mac.displayName) failed cryptographic verification."
                 default:
-                    self.connectionState = .commandFailed(reason: netErr.localizedDescription)
+                    errReason = netErr.localizedDescription
+                    self.connectionState = .commandFailed(reason: errReason)
                     self.alertTitle = "Command Failed"
-                    self.alertMessage = netErr.localizedDescription
+                    self.alertMessage = errReason
                 }
+                self.commandStage = .failed(.sleep, errReason)
             } catch {
+                self.commandStage = .failed(.sleep, error.localizedDescription)
                 self.connectionState = .commandFailed(reason: error.localizedDescription)
                 self.alertTitle = "Command Failed"
                 self.alertMessage = error.localizedDescription

@@ -462,6 +462,9 @@ public final class HandshakeClient: Sendable {
         let envelopeData = try JSONEncoder().encode(envelope)
         try await NetworkFraming.send(data: envelopeData, over: connection)
 
+        // Envelope delivered to network socket; host Mac is executing
+        onStateChange?(.executingCommand(commandType))
+
         // 6. Receive framed acknowledgment
         let responseData = try await NetworkFraming.receive(from: connection)
         let ack = try JSONDecoder().decode(CommandAcknowledgment.self, from: responseData)
@@ -497,6 +500,7 @@ public final class HandshakeClient: Sendable {
         // 9. Check execution status
         switch ack.status {
         case .received, .executed:
+            onStateChange?(.commandCompleted(commandType))
             onStateChange?(.commandAccepted(commandType))
             return ack
         case .rejected(let reason):
@@ -663,6 +667,8 @@ public final class CommandSession: Sendable {
         let envelopeData = try JSONEncoder().encode(envelope)
         try await NetworkFraming.send(data: envelopeData, over: connection)
 
+        onStateChange?(.executingCommand(commandType))
+
         let responseData = try await NetworkFraming.receive(from: connection)
         let ack = try JSONDecoder().decode(CommandAcknowledgment.self, from: responseData)
 
@@ -691,6 +697,7 @@ public final class CommandSession: Sendable {
 
         switch ack.status {
         case .received, .executed:
+            onStateChange?(.commandCompleted(commandType))
             onStateChange?(.commandAccepted(commandType))
             return ack
         case .rejected(let reason):

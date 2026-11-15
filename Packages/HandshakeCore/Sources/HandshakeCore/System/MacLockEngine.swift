@@ -157,12 +157,20 @@ public final class MacLockEngine: Sendable {
             return .failed("AppleScript execution error (\(errorNumber)): \(errorMessage)")
         }
 
-        // Step 4: Independent post-execution verification
-        let isRunning = await verifyScreenSaverActive()
+        // Step 4: Independent post-execution verification with polling
+        var isRunning = false
+        for _ in 0..<15 {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            if await verifyScreenSaverActive() {
+                isRunning = true
+                break
+            }
+        }
+
         if isRunning {
             return .confirmedLocked(passwordRequiredImmediately: true)
         } else {
-            // Screen saver was invoked, but state query may take a few milliseconds to reflect
+            // Screen saver was invoked; if verification timed out in headless or transition state, report invoked
             return .invoked
         }
     }

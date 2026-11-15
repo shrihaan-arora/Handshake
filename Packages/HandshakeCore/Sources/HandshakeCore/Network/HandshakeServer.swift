@@ -31,6 +31,7 @@ public actor HandshakeServer {
     private let initialSequenceCounter: SequenceCounter
     private var peerSequenceCounters: [String: SequenceCounter] = [:]
     private var recentSessionIds: Set<UUID> = []
+    private var recentCommandIds: Set<UUID> = []
     private var initialCounterAssigned: Bool = false
     private let executionHandler: CommandExecutionHandler
     #if os(macOS)
@@ -151,6 +152,7 @@ public actor HandshakeServer {
         pairingApprovalHandler = nil
         peerSequenceCounters.removeAll()
         recentSessionIds.removeAll()
+        recentCommandIds.removeAll()
         initialCounterAssigned = false
     }
 
@@ -161,6 +163,17 @@ public actor HandshakeServer {
         recentSessionIds.insert(id)
         if recentSessionIds.count > 1000 {
             recentSessionIds.removeFirst()
+        }
+        return true
+    }
+
+    private func validateAndRecordCommandId(_ id: UUID) -> Bool {
+        if recentCommandIds.contains(id) {
+            return false
+        }
+        recentCommandIds.insert(id)
+        if recentCommandIds.count > 2000 {
+            recentCommandIds.removeFirst()
         }
         return true
     }
@@ -453,6 +466,16 @@ public actor HandshakeServer {
                             over: connection
                         )
                         break
+                    }
+
+                    // 3b. Anti-replay and deduplication check on CommandMessage.id
+                    guard self.validateAndRecordCommandId(message.id) else {
+                        try await sendRejection(
+                            commandId: message.id,
+                            reason: "Duplicate command request ID rejected.",
+                            over: connection
+                        )
+                        continue
                     }
 
                     // 4. Verify command type is authorized in trust record

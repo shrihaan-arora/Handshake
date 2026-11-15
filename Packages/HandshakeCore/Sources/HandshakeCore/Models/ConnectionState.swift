@@ -25,6 +25,8 @@ public enum ConnectionState: Sendable, Equatable {
     case verifyingDevice
     case secureConnectionEstablished(peer: DeviceIdentity)
     case sendingCommand(CommandType)
+    case executingCommand(CommandType)
+    case commandCompleted(CommandType)
     case commandAccepted(CommandType)
     case commandFailed(reason: String)
     case macUnavailable(reason: String)
@@ -60,7 +62,7 @@ public enum ConnectionState: Sendable, Equatable {
             return transport
         case .connected(let transport, _):
             return transport
-        case .connectingSecurely, .verifyingDevice, .secureConnectionEstablished, .sendingCommand, .commandAccepted:
+        case .connectingSecurely, .verifyingDevice, .secureConnectionEstablished, .sendingCommand, .executingCommand, .commandCompleted, .commandAccepted:
             return .localWiFi
         default:
             return nil
@@ -83,6 +85,10 @@ public enum ConnectionState: Sendable, Equatable {
             return "Secure Link: \(peer.displayName)"
         case .sendingCommand(let command):
             return "Sending \(command.displayName)..."
+        case .executingCommand(let command):
+            return "Executing \(command.displayName)..."
+        case .commandCompleted(let command):
+            return "\(command.displayName) Completed"
         case .commandAccepted(let command):
             return "\(command.displayName) Accepted"
         case .commandFailed(let reason):
@@ -114,6 +120,10 @@ public enum ConnectionState: Sendable, Equatable {
             return "Direct authenticated AEAD channel established with '\(peer.displayName)'."
         case .sendingCommand(let command):
             return "Transmitting encrypted and signed \(command.displayName) envelope."
+        case .executingCommand(let command):
+            return "Executing \(command.displayName) on your Mac."
+        case .commandCompleted(let command):
+            return "\(command.displayName) confirmed executed on your Mac."
         case .commandAccepted(let command):
             return "\(command.displayName) verified and successfully executed on your Mac."
         case .commandFailed(let reason):
@@ -145,6 +155,10 @@ public enum ConnectionState: Sendable, Equatable {
             return "lock.shield.fill"
         case .sendingCommand:
             return "arrow.up.circle.fill"
+        case .executingCommand:
+            return "gearshape.2.fill"
+        case .commandCompleted:
+            return "checkmark.circle.fill"
         case .commandAccepted:
             return "checkmark.circle.fill"
         case .commandFailed:

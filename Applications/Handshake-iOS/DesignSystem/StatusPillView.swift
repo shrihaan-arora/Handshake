@@ -38,9 +38,9 @@ public struct StatusPillView: View {
 
     private var indicatorColor: Color {
         switch state {
-        case .connected, .secureConnectionEstablished, .commandAccepted:
+        case .connected, .secureConnectionEstablished, .commandAccepted, .commandCompleted:
             return HandshakeTheme.Colors.connected
-        case .connecting, .discovering, .macFound, .connectingSecurely, .verifyingDevice, .sendingCommand:
+        case .connecting, .discovering, .macFound, .connectingSecurely, .verifyingDevice, .sendingCommand, .executingCommand:
             return HandshakeTheme.Colors.connecting
         case .disconnected:
             return HandshakeTheme.Colors.disconnected

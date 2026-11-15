@@ -12,6 +12,8 @@ public struct HandshakeActionButton: View {
     public let systemImage: String
     public let style: Style
     public let isEnabled: Bool
+    public let isLoading: Bool
+    public let statusBadge: String?
     public let action: () -> Void
 
     public init(
@@ -20,6 +22,8 @@ public struct HandshakeActionButton: View {
         systemImage: String,
         style: Style = .primary,
         isEnabled: Bool = true,
+        isLoading: Bool = false,
+        statusBadge: String? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -27,6 +31,8 @@ public struct HandshakeActionButton: View {
         self.systemImage = systemImage
         self.style = style
         self.isEnabled = isEnabled
+        self.isLoading = isLoading
+        self.statusBadge = statusBadge
         self.action = action
     }
 
@@ -57,9 +63,24 @@ public struct HandshakeActionButton: View {
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                if let statusBadge {
+                    Text(statusBadge)
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.primary.opacity(0.1), in: Capsule())
+                }
+
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.85)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
             }
             .padding(.horizontal, HandshakeTheme.Spacing.md)
             .padding(.vertical, HandshakeTheme.Spacing.sm + 4)
