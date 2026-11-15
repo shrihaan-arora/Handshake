@@ -35,7 +35,7 @@ Every requirement has been evaluated against empirical evidence:
 | **Hardware**| MacBook Air M4 | Clean native macOS compilation & execution | `Handshake-macOS` BUILD SUCCEEDED | **PASS** |
 | **Hardware**| iPhone 16e Setup | Pairing & Developer Mode verified via `devicectl` | `devicectl` details verified | **PASS** |
 | **Hardware**| iPhone 16e Build | Native `arm64` iOS compilation for physical hardware | `Handshake-iOS` generic/iOS BUILD SUCCEEDED | **PASS** |
-| **Hardware**| Wire Deployment | Deploying app binary over USB-C to physical iPhone | Device locked / not connected over USB | **BLOCKED** |
+| **Hardware**| Wire Deployment | Deploying app binary over USB-C to physical iPhone | Installed via `devicectl` & verified on hardware | **PASS** |
 | **Quality** | Automated Testing | 122 package unit, adversarial, & benchmark tests | 122 passed, 0 failures, 0 warnings | **PASS** |
 | **Quality** | Continuous Harness | One-command verification script (`./scripts/verify.sh`)| 3/3 checks passed cleanly | **PASS** |
 
