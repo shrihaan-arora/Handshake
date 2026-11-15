@@ -98,9 +98,9 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         self.hostAddress = hostAddress
     }
 
-    /// Determines if the invitation has exceeded its security window.
-    public func isExpired(at date: Date = Date()) -> Bool {
-        date > expiresAt
+    /// Determines if the invitation has exceeded its security window with optional clock skew tolerance.
+    public func isExpired(at date: Date = Date(), skewTolerance: TimeInterval = 0.0) -> Bool {
+        date > expiresAt.addingTimeInterval(skewTolerance)
     }
 
     /// Remaining validity duration in seconds. Resilient against non-finite or extreme dates.
@@ -144,7 +144,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
 
     /// Parses and validates a QR code string or JSON payload into a verified `PairingInvitation`.
     /// Rejects expired invitations, malformed URLs, unsupported versions, and invalid cryptographic keys.
-    public static func parse(from rawString: String, currentDate: Date = Date()) throws -> PairingInvitation {
+    public static func parse(from rawString: String, currentDate: Date = Date(), skewTolerance: TimeInterval = 0.0) throws -> PairingInvitation {
         let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw PairingInvitationError.malformedData }
 
@@ -155,7 +155,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
             }
             do {
                 let invitation = try JSONDecoder().decode(PairingInvitation.self, from: jsonData)
-                if invitation.isExpired(at: currentDate) {
+                if invitation.isExpired(at: currentDate, skewTolerance: skewTolerance) {
                     throw PairingInvitationError.expired(invitation.expiresAt)
                 }
                 guard !invitation.hostIdentity.publicKeyHex.isEmpty,
@@ -233,7 +233,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         }
 
         let expiresAt = Date(timeIntervalSince1970: expEpoch)
-        if expiresAt < currentDate {
+        if expiresAt.addingTimeInterval(skewTolerance) < currentDate {
             throw PairingInvitationError.expired(expiresAt)
         }
 

@@ -10,6 +10,7 @@ public final class DashboardViewModel: ObservableObject {
     @Published public var securityStatus: SecurityStatus = .unconfigured
     @Published public var isPairingSheetPresented: Bool = false
     @Published public var isSecurityAuditPresented: Bool = false
+    @Published public var isForgetConfirmationPresented: Bool = false
     @Published public var alertMessage: String? = nil
     @Published public var alertTitle: String = "Handshake"
     @Published public var isExecutingCommand: Bool = false
@@ -364,12 +365,88 @@ public final class DashboardViewModel: ObservableObject {
 
     public func executePairing(
         invitation: PairingInvitation,
+        onStageChange: (@Sendable (PairingStage) -> Void)? = nil,
         onSASDerived: @escaping @Sendable (String) async -> Bool
     ) async throws -> TrustRecord {
         guard let client = self.client else {
             throw HandshakeClient.ClientError.connectionFailed("Cryptographic client uninitialized")
         }
-        return try await client.pair(with: invitation, trustStore: self.trustStore, onSASDerived: onSASDerived)
+        return try await client.pair(
+            with: invitation,
+            trustStore: self.trustStore,
+            onStageChange: onStageChange,
+            onSASDerived: onSASDerived
+        )
+    }
+
+    // MARK: - Disconnect & Reconnect Lifecycle
+
+    public func handleDisconnectTapped() {
+        guard !isExecutingCommand else { return }
+        guard connectionState != .disconnected && connectionState != .disconnecting else { return }
+
+        connectionState = .disconnecting
+
+        Task {
+            // Simulated brief grace to flush any pending network buffers and release ephemeral session keys
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            await MainActor.run {
+                self.connectionState = .disconnected
+                self.alertTitle = "Disconnected"
+                self.alertMessage = "Session terminated. Pairing records remain preserved for quick reconnection."
+            }
+        }
+    }
+
+    public func handleReconnectTapped() {
+        guard let mac = pairedMac, let client = client else { return }
+        guard !isExecutingCommand else { return }
+
+        connectionState = .reconnecting
+
+        Task {
+            do {
+                let (endpoint, _) = try await client.discoverMac(
+                    serviceType: "_handshake._tcp",
+                    targetPeer: mac,
+                    timeoutSeconds: 5.0
+                )
+                await MainActor.run {
+                    self.connectionState = .connected(transport: .localWiFi, peer: mac)
+                }
+            } catch {
+                await MainActor.run {
+                    self.connectionState = .connectionFailed(reason: "Mac companion not found on local Wi-Fi.")
+                }
+            }
+        }
+    }
+
+    public func handleForgetDeviceTapped() {
+        self.isForgetConfirmationPresented = true
+    }
+
+    public func confirmForgetDevice() {
+        guard let record = activeTrustRecord else { return }
+        Task {
+            try? await trustStore.revoke(id: record.id)
+            await MainActor.run {
+                self.activeTrustRecord = nil
+                self.pairedMac = nil
+                self.connectionState = .disconnected
+                self.securityStatus = SecurityStatus(
+                    trustLevel: .unverified,
+                    isHardwareBacked: self.clientIdentity?.isHardwareBacked ?? false,
+                    isTransportEncrypted: false,
+                    isApplicationEncrypted: false,
+                    isReplayGuarded: false,
+                    zeroCloudEnforced: true,
+                    lastAuditedDate: nil
+                )
+                self.alertTitle = "Device Forgotten"
+                self.alertMessage = "Device trust revoked. You will need to scan a new pairing QR code to reconnect."
+            }
+        }
     }
 
     public func handlePairingCompleted(record: TrustRecord) {

@@ -13,8 +13,7 @@ public struct PairingScannerView: View {
 
     public enum ScannerStep {
         case scanning
-        case validating
-        case connecting(hostName: String)
+        case stage(PairingStage)
         case verifyingSAS(invitation: PairingInvitation, sasCode: String, onDecide: @Sendable (Bool) -> Void)
         case success(hostName: String)
         case failed(message: String)
@@ -209,7 +208,7 @@ public struct PairingScannerView: View {
     @ViewBuilder
     private var authorizedScannerBody: some View {
         switch currentStep {
-        case .scanning, .validating:
+        case .scanning:
             VStack(spacing: 0) {
                 // Live camera feed with reticle
                 ZStack {
@@ -232,28 +231,18 @@ public struct PairingScannerView: View {
                 // Guidance and security explanation
                 ScrollView {
                     VStack(spacing: HandshakeTheme.Spacing.md) {
-                        if case .validating = currentStep {
-                            HStack(spacing: HandshakeTheme.Spacing.sm) {
-                                ProgressView()
-                                Text("Validating Pairing Invitation...")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.top, HandshakeTheme.Spacing.md)
-                        } else {
-                            VStack(spacing: 4) {
-                                Text("Scan Mac Companion QR Code")
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
+                        VStack(spacing: 4) {
+                            Text("Scan Mac Companion QR Code")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
 
-                                Text("Align the QR code displayed in Handshake on your Mac screen within the frame.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, HandshakeTheme.Spacing.lg)
-                            }
-                            .padding(.top, HandshakeTheme.Spacing.md)
+                            Text("Align the QR code displayed in Handshake on your Mac screen within the frame.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, HandshakeTheme.Spacing.lg)
                         }
+                        .padding(.top, HandshakeTheme.Spacing.md)
 
                         // Security Protocol Summary
                         HandshakeCard {
@@ -276,22 +265,8 @@ public struct PairingScannerView: View {
                 }
             }
 
-        case .connecting(let hostName):
-            VStack(spacing: HandshakeTheme.Spacing.lg) {
-                Spacer()
-                ProgressView()
-                    .scaleEffect(1.5)
-                VStack(spacing: 4) {
-                    Text("Connecting to \(hostName)...")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    Text("Establishing encrypted local transport over Wi-Fi")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding()
+        case .stage(let stage):
+            pairingStageView(stage: stage)
 
         case .verifyingSAS(let invitation, let sasCode, let onDecide):
             sasVerificationView(invitation: invitation, sasCode: sasCode, onDecide: onDecide)
@@ -463,15 +438,50 @@ public struct PairingScannerView: View {
         }
     }
 
+    // MARK: - Pairing Stage View
+
+    private func pairingStageView(stage: PairingStage) -> some View {
+        VStack(spacing: HandshakeTheme.Spacing.lg) {
+            Spacer()
+
+            Image(systemName: stage.sfSymbolName)
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(.tint)
+                .padding()
+                .background(Color.accentColor.opacity(0.1), in: Circle())
+
+            ProgressView()
+                .scaleEffect(1.3)
+                .padding(.top, 4)
+
+            VStack(spacing: 8) {
+                Text(stage.title)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+
+                Text(stage.detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, HandshakeTheme.Spacing.lg)
+            }
+
+            Spacer()
+        }
+        .padding()
+    }
+
     // MARK: - Scan & Pairing Handlers
 
     private func handleScannedCode(_ code: String) {
         guard isScanningActive else { return }
         isScanningActive = false
-        currentStep = .validating
+        currentStep = .stage(.qrDetected)
 
         do {
-            let invitation = try PairingInvitation.parse(from: code)
+            currentStep = .stage(.invitationParsing)
+            let invitation = try PairingInvitation.parse(from: code, skewTolerance: 30.0)
             startPairingProtocol(with: invitation)
         } catch {
             currentStep = .failed(message: error.localizedDescription)
@@ -488,22 +498,30 @@ public struct PairingScannerView: View {
             return
         }
 
-        currentStep = .connecting(hostName: invitation.hostIdentity.displayName)
+        currentStep = .stage(.invitationValidating)
 
         Task {
             do {
-                let record = try await vm.executePairing(invitation: invitation) { derivedSAS in
-                    await withCheckedContinuation { continuation in
+                let record = try await vm.executePairing(
+                    invitation: invitation,
+                    onStageChange: { stage in
                         Task { @MainActor in
-                            self.currentStep = .verifyingSAS(
-                                invitation: invitation,
-                                sasCode: derivedSAS
-                            ) { approved in
-                                continuation.resume(returning: approved)
+                            self.currentStep = .stage(stage)
+                        }
+                    },
+                    onSASDerived: { derivedSAS in
+                        await withCheckedContinuation { continuation in
+                            Task { @MainActor in
+                                self.currentStep = .verifyingSAS(
+                                    invitation: invitation,
+                                    sasCode: derivedSAS
+                                ) { approved in
+                                    continuation.resume(returning: approved)
+                                }
                             }
                         }
                     }
-                }
+                )
 
                 await MainActor.run {
                     vm.handlePairingCompleted(record: record)

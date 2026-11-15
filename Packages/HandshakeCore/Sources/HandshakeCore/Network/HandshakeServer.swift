@@ -211,6 +211,13 @@ public actor HandshakeServer {
         return running
     }
 
+    private func requestMacApproval(for client: DeviceIdentity, sasCode: String) async -> Bool {
+        if let handler = self.pairingApprovalHandler {
+            return await handler(client, sasCode)
+        }
+        return true
+    }
+
     // MARK: - Inbound Connection Processing
 
     private func handleIncomingConnection(_ connection: NWConnection) {
@@ -219,6 +226,7 @@ public actor HandshakeServer {
 
         Task {
             var activeSessionDbId: Int64? = nil
+            var activeSession: EstablishedSession? = nil
             defer {
                 if let sessionDbId = activeSessionDbId {
                     try? self.deviceSessionRepository?.endSession(
@@ -227,10 +235,16 @@ public actor HandshakeServer {
                         status: "closed"
                     )
                 }
+                if let session = activeSession {
+                    _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                        peerDeviceId: session.peer.id.uuidString,
+                        peerDeviceName: session.peer.displayName,
+                        eventType: "device_disconnected",
+                        result: "closed"
+                    ))
+                }
                 connection.cancel()
             }
-
-            var activeSession: EstablishedSession? = nil
 
             while true {
                 do {
@@ -271,11 +285,23 @@ public actor HandshakeServer {
 
                         do {
                             let (response, derivedSAS) = try await hostSession.processRequest(pairingRequest)
+                            _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                eventType: "qr_invitation_validated",
+                                result: "success"
+                            ))
+
+                            // 1. Send PairingResponse to client so iPhone can derive SAS and present UI immediately
                             let respData = try JSONEncoder().encode(response)
                             try await NetworkFraming.send(data: respData, over: connection)
 
-                            // Await confirmation from client
-                            let confirmData = try await NetworkFraming.receive(from: connection)
+                            // 2. Request Mac user explicit bilateral confirmation over the derived SAS concurrently
+                            // This guarantees both iPhone and Mac display the identical 6-digit SAS code at the exact same time
+                            async let macApprovalTask = self.requestMacApproval(for: pairingRequest.clientIdentity, sasCode: derivedSAS)
+
+                            // 3. Await confirmation from client with bounded timeout (60 seconds)
+                            let confirmData = try await NetworkFraming.receive(from: connection, timeoutSeconds: 60.0)
                             let confirmation = try JSONDecoder().decode(PairingConfirmation.self, from: confirmData)
                             guard confirmation.isApproved else {
                                 let failedComp = PairingCompletion(
@@ -297,14 +323,8 @@ public actor HandshakeServer {
                                 break
                             }
 
-                            // Request Mac user explicit bilateral confirmation over the derived SAS
-                            let macApproved: Bool
-                            if let approvalHandler = self.pairingApprovalHandler {
-                                macApproved = await approvalHandler(pairingRequest.clientIdentity, derivedSAS)
-                            } else {
-                                macApproved = true
-                            }
-
+                            // 4. Await Mac user confirmation
+                            let macApproved = await macApprovalTask
                             guard macApproved else {
                                 let failedComp = PairingCompletion(
                                     invitationId: pairingRequest.invitationId,
@@ -325,6 +345,14 @@ public actor HandshakeServer {
                                 break
                             }
 
+                            _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                eventType: "sas_confirmed",
+                                result: "success"
+                            ))
+
+                            // 5. Complete mutual pairing and pin client in TrustStore
                             let (completion, _) = try await hostSession.processConfirmation(confirmation, trustStore: self.trustStore)
                             let compData = try JSONEncoder().encode(completion)
                             try await NetworkFraming.send(data: compData, over: connection)
@@ -352,7 +380,7 @@ public actor HandshakeServer {
                                 peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
                                 peerDeviceName: pairingRequest.clientIdentity.displayName,
                                 eventType: "pairing_failed",
-                                result: "failed"
+                                result: error.localizedDescription
                             ))
                             break
                         }
@@ -477,6 +505,12 @@ public actor HandshakeServer {
                             status: "active"
                         )
                         activeSessionDbId = try? self.deviceSessionRepository?.insert(sessionRecord)
+                        _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                            peerDeviceId: trustRecord.peer.id.uuidString,
+                            peerDeviceName: trustRecord.peer.displayName,
+                            eventType: "device_connected",
+                            result: "success"
+                        ))
 
                         continue
                     }

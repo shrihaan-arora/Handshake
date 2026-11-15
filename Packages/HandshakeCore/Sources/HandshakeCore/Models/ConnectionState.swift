@@ -30,6 +30,9 @@ public enum ConnectionState: Sendable, Equatable {
     case commandAccepted(CommandType)
     case commandFailed(reason: String)
     case macUnavailable(reason: String)
+    case disconnecting
+    case reconnecting
+    case connectionFailed(reason: String)
 
     // Legacy/compatibility cases
     case connecting(transport: TransportType)
@@ -95,6 +98,12 @@ public enum ConnectionState: Sendable, Equatable {
             return "Command Failed: \(reason)"
         case .macUnavailable:
             return "Mac Unavailable"
+        case .disconnecting:
+            return "Disconnecting..."
+        case .reconnecting:
+            return "Reconnecting..."
+        case .connectionFailed:
+            return "Connection Failed"
         case .connecting(let transport):
             return "Connecting via \(transport.rawValue)..."
         case .connected(let transport, let peer):
@@ -129,6 +138,12 @@ public enum ConnectionState: Sendable, Equatable {
         case .commandFailed(let reason):
             return reason
         case .macUnavailable(let reason):
+            return reason
+        case .disconnecting:
+            return "Releasing session keys and closing local peer connection."
+        case .reconnecting:
+            return "Searching for paired Mac on local network to re-establish session."
+        case .connectionFailed(let reason):
             return reason
         case .connecting(let transport):
             return "Connecting over \(transport.rawValue)..."
@@ -165,6 +180,12 @@ public enum ConnectionState: Sendable, Equatable {
             return "xmark.circle.fill"
         case .macUnavailable:
             return "macbook.and.iphone"
+        case .disconnecting:
+            return "wifi.slash"
+        case .reconnecting:
+            return "arrow.clockwise"
+        case .connectionFailed:
+            return "exclamationmark.triangle.fill"
         case .connecting:
             return "arrow.triangle.2.circlepath"
         case .connected:

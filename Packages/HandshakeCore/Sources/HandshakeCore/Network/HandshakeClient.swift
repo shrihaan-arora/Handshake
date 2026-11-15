@@ -162,13 +162,18 @@ public final class HandshakeClient: Sendable {
     public func pair(
         with invitation: PairingInvitation,
         trustStore: TrustStore,
+        onStageChange: (@Sendable (PairingStage) -> Void)? = nil,
         onSASDerived: @escaping @Sendable (String) async -> Bool
     ) async throws -> TrustRecord {
-        guard !invitation.isExpired() else {
+        onStageChange?(.invitationValidating)
+        guard !invitation.isExpired(skewTolerance: 60.0) else {
+            let msg = "Pairing invitation has expired. Please display a fresh pairing QR code on your Mac."
+            onStageChange?(.pairingFailed(reason: msg))
             throw PairingError.invitationExpired
         }
 
         // 1. Dual-path endpoint resolution (Direct host probe + Bonjour discovery fallback)
+        onStageChange?(.resolvingHost(hostName: invitation.hostIdentity.displayName))
         var targetEndpoint: NWEndpoint? = nil
 
         if let host = invitation.hostAddress, !host.isEmpty,
@@ -178,6 +183,7 @@ public final class HandshakeClient: Sendable {
                 let probeLock = ResumeLock()
                 let probeQueue = DispatchQueue(label: "com.handshake.probe", qos: .userInitiated)
                 let probeParams = NWParameters.tcp
+                probeParams.includePeerToPeer = true
                 let probeConn = NWConnection(to: directEndpoint, using: probeParams)
 
                 probeQueue.asyncAfter(deadline: .now() + 1.5) {
@@ -216,18 +222,42 @@ public final class HandshakeClient: Sendable {
         }
 
         guard let endpoint = targetEndpoint else {
+            let reason = "Could not discover '\(invitation.hostIdentity.displayName)' on local Wi-Fi. Verify both devices are on the same network."
+            onStageChange?(.pairingFailed(reason: reason))
             throw ClientError.macNotFound
         }
 
-        // 2. Establish local TCP connection
+        // 2. Establish local TCP connection with bounded timeout
+        let endpointDescription: String
+        switch endpoint {
+        case .hostPort(let host, let port):
+            endpointDescription = "\(host):\(port)"
+        case .service(let name, _, _, _):
+            endpointDescription = name
+        default:
+            endpointDescription = "Mac"
+        }
+        onStageChange?(.connectingSocket(endpoint: endpointDescription))
+
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.enableKeepalive = false
         let params = NWParameters(tls: nil, tcp: tcpOptions)
+        params.includePeerToPeer = true
         let connection = NWConnection(to: endpoint, using: params)
 
         return try await withCheckedThrowingContinuation { continuation in
             let queue = DispatchQueue(label: "com.handshake.client.pairing", qos: .userInitiated)
             let resumeState = ResumeLock()
+
+            // Bounded connection timer (10s)
+            queue.asyncAfter(deadline: .now() + 10.0) {
+                if resumeState.takeResume() {
+                    connection.cancel()
+                    let msg = "Connection timed out connecting to \(invitation.hostIdentity.displayName)."
+                    onStageChange?(.pairingFailed(reason: msg))
+                    continuation.resume(throwing: ClientError.timeout)
+                }
+            }
 
             connection.stateUpdateHandler = { state in
                 switch state {
@@ -235,6 +265,7 @@ public final class HandshakeClient: Sendable {
                     Task {
                         do {
                             // 3. Initialize ClientPairingSession
+                            onStageChange?(.exchangingEphemeralKeys)
                             let clientSession = try ClientPairingSession(
                                 invitation: invitation,
                                 clientIdentity: self.clientIdentity
@@ -245,14 +276,30 @@ public final class HandshakeClient: Sendable {
                             let reqData = try JSONEncoder().encode(request)
                             try await NetworkFraming.send(data: reqData, over: connection)
 
-                            // 5. Receive PairingResponse
-                            let respBytes = try await NetworkFraming.receive(from: connection)
+                            onStageChange?(.waitingForMacResponse)
+
+                            // 5. Receive PairingResponse with bounded 15s timeout
+                            let respBytes = try await NetworkFraming.receive(from: connection, timeoutSeconds: 15.0)
+
+                            // Check if host sent a rejection
+                            if let ack = try? JSONDecoder().decode(CommandAcknowledgment.self, from: respBytes) {
+                                let rejectionMsg: String
+                                if case .rejected(let reason) = ack.status {
+                                    rejectionMsg = reason
+                                } else {
+                                    rejectionMsg = "Pairing request was declined by the Mac."
+                                }
+                                throw PairingError.handshakeFailed(rejectionMsg)
+                            }
+
                             let response = try JSONDecoder().decode(PairingResponse.self, from: respBytes)
 
                             // 6. Process response & derive SAS code independently
+                            onStageChange?(.derivingVerificationCode)
                             let sasCode = try await clientSession.processResponse(response)
 
                             // 7. Request user approval over derived SAS code
+                            onStageChange?(.waitingForMutualConfirmation(sasCode: sasCode))
                             let approved = await onSASDerived(sasCode)
                             guard approved else {
                                 let rejectConfirm = try await clientSession.createConfirmation(isApproved: false)
@@ -260,22 +307,29 @@ public final class HandshakeClient: Sendable {
                                 try? await NetworkFraming.send(data: rejectData, over: connection)
                                 connection.cancel()
                                 if resumeState.takeResume() {
+                                    onStageChange?(.pairingFailed(reason: "Pairing was rejected on this device."))
                                     continuation.resume(throwing: PairingError.unapproved)
                                 }
                                 return
                             }
 
                             // 8. Send approved PairingConfirmation
+                            onStageChange?(.sendingConfirmation)
                             let confirmation = try await clientSession.createConfirmation(isApproved: true)
                             let confirmData = try JSONEncoder().encode(confirmation)
                             try await NetworkFraming.send(data: confirmData, over: connection)
 
-                            // 9. Receive PairingCompletion
-                            let compBytes = try await NetworkFraming.receive(from: connection)
+                            // 9. Receive PairingCompletion with bounded 30s timeout
+                            let compBytes = try await NetworkFraming.receive(from: connection, timeoutSeconds: 30.0)
                             let completion = try JSONDecoder().decode(PairingCompletion.self, from: compBytes)
+
+                            guard completion.isSuccessful else {
+                                throw PairingError.handshakeFailed("Pairing was rejected on the Mac screen.")
+                            }
 
                             // 10. Complete pairing and pin host in TrustStore
                             let establishedRecord = try await clientSession.completePairing(completion, trustStore: trustStore)
+                            onStageChange?(.pairingCompleted(peer: invitation.hostIdentity))
 
                             connection.cancel()
                             if resumeState.takeResume() {
@@ -284,6 +338,7 @@ public final class HandshakeClient: Sendable {
                         } catch {
                             connection.cancel()
                             if resumeState.takeResume() {
+                                onStageChange?(.pairingFailed(reason: error.localizedDescription))
                                 continuation.resume(throwing: error)
                             }
                         }
@@ -291,6 +346,8 @@ public final class HandshakeClient: Sendable {
 
                 case .failed(let error):
                     if resumeState.takeResume() {
+                        let msg = "Network connection failed: \(error.localizedDescription)"
+                        onStageChange?(.pairingFailed(reason: msg))
                         continuation.resume(throwing: ClientError.connectionFailed(error.localizedDescription))
                     }
 

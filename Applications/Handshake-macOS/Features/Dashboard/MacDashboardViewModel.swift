@@ -256,6 +256,13 @@ public final class MacDashboardViewModel: ObservableObject {
         self.pairingState = .advertising(invitation: hostSession.invitation)
         self.isPairingSheetPresented = true
 
+        _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+            peerDeviceId: host.identity.id.uuidString,
+            peerDeviceName: host.identity.displayName,
+            eventType: "pairing_initiated",
+            result: "advertising"
+        ))
+
         Task {
             await self.server?.setActivePairingSession(hostSession) { [weak self] client, sasCode in
                 guard let self = self else { return false }

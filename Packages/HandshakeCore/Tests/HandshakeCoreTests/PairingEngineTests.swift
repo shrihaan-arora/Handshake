@@ -304,4 +304,48 @@ final class PairingEngineTests: XCTestCase {
         let isTrusted = await hostTrustStore.isDeviceTrusted(publicKeyHex: clientIdentity.identity.publicKeyHex)
         XCTAssertFalse(isTrusted, "Rejected device must not be trusted")
     }
+
+    // MARK: - 7. Pairing Stages Progression & Diagnostic Semantics
+
+    func testPairingStagesEnumSemanticsAndProgression() {
+        let stages: [PairingStage] = [
+            .qrDetected,
+            .invitationParsing,
+            .invitationValidating,
+            .resolvingHost(hostName: "MacBook Air M4"),
+            .connectingSocket(endpoint: "192.168.1.50:5894"),
+            .exchangingEphemeralKeys,
+            .waitingForMacResponse,
+            .derivingVerificationCode,
+            .waitingForMutualConfirmation(sasCode: "849201"),
+            .sendingConfirmation,
+            .pairingCompleted(peer: DeviceIdentity(
+                publicKeyHex: "04" + String(repeating: "aa", count: 64),
+                displayName: "MacBook Air",
+                deviceType: .mac,
+                modelIdentifier: "Mac15,3",
+                systemVersion: "macOS 15.0"
+            )),
+            .pairingFailed(reason: "Discovery timed out.")
+        ]
+
+        for stage in stages {
+            XCTAssertFalse(stage.title.isEmpty, "Stage \(stage) must provide a title")
+            XCTAssertFalse(stage.detail.isEmpty, "Stage \(stage) must provide a diagnostic detail")
+            XCTAssertFalse(stage.sfSymbolName.isEmpty, "Stage \(stage) must provide an SF Symbol name")
+        }
+
+        XCTAssertEqual(PairingStage.qrDetected.sfSymbolName, "qrcode")
+        XCTAssertEqual(PairingStage.invitationValidating.sfSymbolName, "checkmark.shield")
+        XCTAssertEqual(PairingStage.waitingForMutualConfirmation(sasCode: "123456").title, "Confirm Security Code")
+        let testPeer = DeviceIdentity(
+            publicKeyHex: "04aa",
+            displayName: "Mac",
+            deviceType: .mac,
+            modelIdentifier: "Mac15,3",
+            systemVersion: "macOS 15.0"
+        )
+        XCTAssertEqual(PairingStage.pairingCompleted(peer: testPeer).sfSymbolName, "checkmark.seal.fill")
+        XCTAssertEqual(PairingStage.pairingFailed(reason: "Error").sfSymbolName, "xmark.octagon.fill")
+    }
 }

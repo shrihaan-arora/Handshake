@@ -145,7 +145,7 @@ public struct iPhoneDashboardView: View {
                         HandshakeActionButton(
                             title: "Sleep Mac",
                             subtitle: "Puts system into low-power sleep mode",
-                            systemImage: "moon.fill",
+                            systemImage: "moon.zzz.fill",
                             style: .secondary,
                             isEnabled: viewModel.pairedMac != nil && !viewModel.isExecutingCommand,
                             isLoading: viewModel.isExecutingCommand && viewModel.commandStage.command == .sleep,
@@ -154,6 +154,25 @@ public struct iPhoneDashboardView: View {
                             viewModel.handleSleepMacTapped()
                         }
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
+
+                        if viewModel.pairedMac != nil {
+                            HandshakeActionButton(
+                                title: viewModel.connectionState == .disconnected ? "Reconnect Session" : "Disconnect",
+                                subtitle: viewModel.connectionState == .disconnected ? "Re-establish local connection to \(viewModel.pairedMac?.displayName ?? "Mac")" : "Releases active session keys without unpairing",
+                                systemImage: viewModel.connectionState == .disconnected ? "arrow.clockwise" : "wifi.slash",
+                                style: .secondary,
+                                isEnabled: !viewModel.isExecutingCommand && viewModel.connectionState != .disconnecting,
+                                isLoading: viewModel.connectionState == .disconnecting || viewModel.connectionState == .reconnecting,
+                                statusBadge: viewModel.connectionState == .disconnecting ? "Disconnecting" : (viewModel.connectionState == .reconnecting ? "Reconnecting" : nil)
+                            ) {
+                                if viewModel.connectionState == .disconnected {
+                                    viewModel.handleReconnectTapped()
+                                } else {
+                                    viewModel.handleDisconnectTapped()
+                                }
+                            }
+                            .padding(.horizontal, HandshakeTheme.Spacing.md)
+                        }
                     }
 
                     // MARK: - Secondary Actions
@@ -174,6 +193,18 @@ public struct iPhoneDashboardView: View {
                             viewModel.handlePairNewDeviceTapped()
                         }
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
+
+                        if let mac = viewModel.pairedMac {
+                            HandshakeActionButton(
+                                title: "Forget \(mac.displayName)",
+                                subtitle: "Revokes device trust and deletes Keychain records",
+                                systemImage: "trash",
+                                style: .destructive
+                            ) {
+                                viewModel.handleForgetDeviceTapped()
+                            }
+                            .padding(.horizontal, HandshakeTheme.Spacing.md)
+                        }
                     }
 
                     // MARK: - Security Architecture Footnote
@@ -207,6 +238,14 @@ public struct iPhoneDashboardView: View {
                 if let message = viewModel.alertMessage {
                     Text(message)
                 }
+            }
+            .alert("Forget \(viewModel.pairedMac?.displayName ?? "Mac")?", isPresented: $viewModel.isForgetConfirmationPresented) {
+                Button("Forget Device", role: .destructive) {
+                    viewModel.confirmForgetDevice()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently remove this device from your trusted peers. You will need to scan a new pairing QR code to reconnect.")
             }
         }
     }

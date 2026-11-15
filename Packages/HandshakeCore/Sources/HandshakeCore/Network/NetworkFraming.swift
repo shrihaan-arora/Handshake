@@ -11,6 +11,7 @@ public enum NetworkFraming {
         case frameTooLarge(UInt32)
         case truncatedHeader
         case connectionClosed
+        case connectionTimeout
         case transmissionFailed(String)
 
         public var errorDescription: String? {
@@ -21,6 +22,8 @@ public enum NetworkFraming {
                 return "Truncated frame header received."
             case .connectionClosed:
                 return "The network connection was closed unexpectedly."
+            case .connectionTimeout:
+                return "Network operation timed out waiting for data from peer."
             case .transmissionFailed(let msg):
                 return "Failed to transmit frame: \(msg)"
             }
@@ -61,10 +64,32 @@ public enum NetworkFraming {
         }
     }
 
-    /// Receives a complete length-prefixed frame asynchronously from an NWConnection.
+    /// Receives a complete length-prefixed frame asynchronously from an NWConnection with optional bounded timeout.
     public static func receive(
-        from connection: NWConnection
+        from connection: NWConnection,
+        timeoutSeconds: TimeInterval? = nil
     ) async throws -> Data {
+        if let timeout = timeoutSeconds, timeout > 0 {
+            return try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    try await receiveInternal(from: connection)
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    throw FramingError.connectionTimeout
+                }
+                guard let result = try await group.next() else {
+                    throw FramingError.connectionTimeout
+                }
+                group.cancelAll()
+                return result
+            }
+        } else {
+            return try await receiveInternal(from: connection)
+        }
+    }
+
+    private static func receiveInternal(from connection: NWConnection) async throws -> Data {
         // 1. Read 4-byte header
         let headerData = try await receiveExactBytes(count: 4, from: connection)
         guard headerData.count == 4 else {

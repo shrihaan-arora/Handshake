@@ -459,4 +459,76 @@ final class DatabaseTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - 13. Audit Lifecycle Events Recording
+
+    func test13_AuditLifecycleEventsRecording() throws {
+        let dbManager = try DatabaseManager(path: tempDatabasePath)
+        defer { dbManager.close() }
+        let pairingRepo = PairingEventRepository(dbManager: dbManager)
+        let sessionRepo = DeviceSessionRepository(dbManager: dbManager)
+
+        let peerId = UUID().uuidString
+        let peerName = "Test iPhone 16e"
+
+        // 1. Pairing initiated
+        try pairingRepo.insert(PairingEventRecord(
+            peerDeviceId: peerId,
+            peerDeviceName: peerName,
+            eventType: "pairing_initiated",
+            result: "advertising"
+        ))
+
+        // 2. QR invitation validated
+        try pairingRepo.insert(PairingEventRecord(
+            peerDeviceId: peerId,
+            peerDeviceName: peerName,
+            eventType: "qr_invitation_validated",
+            result: "success"
+        ))
+
+        // 3. SAS confirmed
+        try pairingRepo.insert(PairingEventRecord(
+            peerDeviceId: peerId,
+            peerDeviceName: peerName,
+            eventType: "sas_confirmed",
+            result: "success"
+        ))
+
+        // 4. Device connected
+        let sessionId = try sessionRepo.insert(DeviceSessionRecord(
+            peerDeviceId: peerId,
+            sessionStartedAt: DatabaseManager.iso8601String(),
+            status: "active"
+        ))
+        try pairingRepo.insert(PairingEventRecord(
+            peerDeviceId: peerId,
+            peerDeviceName: peerName,
+            eventType: "device_connected",
+            result: "success"
+        ))
+
+        // 5. Device disconnected
+        try sessionRepo.endSession(id: sessionId, status: "closed")
+        try pairingRepo.insert(PairingEventRecord(
+            peerDeviceId: peerId,
+            peerDeviceName: peerName,
+            eventType: "device_disconnected",
+            result: "closed"
+        ))
+
+        // Verify persisted events
+        let events = try pairingRepo.fetchRecent(limit: 10)
+        XCTAssertEqual(events.count, 5)
+        XCTAssertEqual(events[0].eventType, "device_disconnected")
+        XCTAssertEqual(events[1].eventType, "device_connected")
+        XCTAssertEqual(events[2].eventType, "sas_confirmed")
+        XCTAssertEqual(events[3].eventType, "qr_invitation_validated")
+        XCTAssertEqual(events[4].eventType, "pairing_initiated")
+
+        let sessions = try sessionRepo.fetchRecent(limit: 10)
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertEqual(sessions[0].status, "closed")
+        XCTAssertNotNil(sessions[0].sessionEndedAt)
+    }
 }

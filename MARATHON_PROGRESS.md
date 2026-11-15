@@ -23,6 +23,7 @@
 | **I** | Integration Testing & V1 Release Preparation | Acceptance verification across all 18 criteria | **COMPLETED** | `407e06f` |
 | **V1-Val**| Real-World Validation & Security Assurance | Lock screen grace period fail-closed, two-stage sleep receipt, adversarial tests, physical hardware audit | **COMPLETED** | `087009a` |
 | **Mission**| Secure Local Communication Engineering Mission | Local Wi-Fi Bonjour TXT disambiguation, directional AEAD session keys, per-peer replay isolation, 17 adversarial network tests | **COMPLETED** | Local Branch |
+| **Polish** | Pairing Completion, Diagnostics & Disconnect Polish | Fixed missing SAS code via concurrent Mac presentation, added 12 diagnostic stages (`PairingStage`), bounded timeouts, disconnect & reconnect controls, button polish, SQLite audit logging | **COMPLETED** | `feature/pairing-completion-and-disconnect` |
 
 ---
 
@@ -49,3 +50,11 @@
 - **2026-11-15 05:36:00:** Added Bonjour TXT record advertisement (`v=1`, `id=<UUID>`, `pk=<shortFingerprint>`) and targeted discovery disambiguation in `HandshakeClient.swift` (SEC-16).
 - **2026-11-15 05:37:00:** Implemented per-peer sequence counter state dictionaries in `HandshakeServer` (SEC-17), enabling concurrent paired client execution without replay collision. Added `CommandSession` for persistent multi-message connections.
 - **2026-11-15 05:40:00:** Authored comprehensive 17-scenario adversarial network testing suite in `AdversarialNetworkTests.swift`. All 102 package unit tests passing with zero failures. Both native application targets compile cleanly with zero compiler warnings.
+- **2026-11-15 23:00:00:** Commenced Pairing Completion, Diagnostics & Disconnect Polish on branch `feature/pairing-completion-and-disconnect`.
+- **2026-11-15 23:10:00:** Diagnosed missing 6-digit SAS code: traced asymmetric sequential approval in `HandshakeServer.swift`, lack of timeout on TCP socket/framing receive, and 0-tolerance clock expiry on invitations.
+- **2026-11-15 23:15:00:** Implemented concurrent SAS presentation in `HandshakeServer.swift` via `async let macApprovalTask = self.requestMacApproval(for:client, sasCode:derivedSAS)`. Both iPhone and Mac display matching SAS code simultaneously.
+- **2026-11-15 23:18:00:** Created `PairingStage.swift` defining 12 diagnostic stages with SF Symbols and localized titles/details. Added bounded timeouts to `HandshakeClient.pair` (10s connection, 15s response, 30s completion) and rejection envelope decoding.
+- **2026-11-15 23:20:00:** Added Disconnect and Reconnect feature to `DashboardViewModel` and `iPhoneDashboardView` (`wifi.slash` / `arrow.clockwise`). Session keys released, trust records preserved in Keychain. Added separate destructive Forget Device confirmation alert.
+- **2026-11-15 23:22:00:** Polished action buttons: `lock.fill` for Lock Screen, `moon.zzz.fill` for Sleep Mac, `wifi.slash` for Disconnect, with consistent 32x32 frames and VoiceOver accessibility.
+- **2026-11-15 23:24:00:** Updated SQLite audit database logging in `HandshakeServer` and `MacDashboardViewModel`: `pairing_initiated`, `qr_invitation_validated`, `sas_confirmed`, `device_connected`, and `device_disconnected`.
+- **2026-11-15 23:25:00:** Added test cases `PairingEngineTests.testPairingStagesEnumSemanticsAndProgression` and `DatabaseTests.test13_AuditLifecycleEventsRecording`. All 161 tests in HandshakeCore passing cleanly (0 failures). Dual platform builds (`Handshake-macOS` and `Handshake-iOS`) succeeded. Documented in `PAIRING_DIAGNOSTICS.md`.

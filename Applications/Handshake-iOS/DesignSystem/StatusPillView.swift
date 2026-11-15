@@ -40,11 +40,11 @@ public struct StatusPillView: View {
         switch state {
         case .connected, .secureConnectionEstablished, .commandAccepted, .commandCompleted:
             return HandshakeTheme.Colors.connected
-        case .connecting, .discovering, .macFound, .connectingSecurely, .verifyingDevice, .sendingCommand, .executingCommand:
+        case .connecting, .discovering, .macFound, .connectingSecurely, .verifyingDevice, .sendingCommand, .executingCommand, .reconnecting, .disconnecting:
             return HandshakeTheme.Colors.connecting
         case .disconnected:
             return HandshakeTheme.Colors.disconnected
-        case .failed, .commandFailed, .macUnavailable:
+        case .failed, .commandFailed, .macUnavailable, .connectionFailed:
             return HandshakeTheme.Colors.destructive
         }
     }

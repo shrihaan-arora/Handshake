@@ -184,3 +184,32 @@ sqlite3 ~/Library/Application\ Support/Handshake/handshake.sqlite "SELECT count(
 # pairing_events: 0
 ```
 
+---
+
+## 7. Marathon Post-Audit: Pairing Completion, Diagnostics & Disconnect Polish
+
+### Implementation Summary (`feature/pairing-completion-and-disconnect`)
+1. **Missing 6-Digit Verification Code Fix:**
+   - Diagnosed asymmetric blocking in `HandshakeServer.swift` where the host waited for the client's confirmation before presenting the SAS approval UI.
+   - Refactored `HandshakeServer` to initiate `async let macApprovalTask = self.requestMacApproval(for:client, sasCode:derivedSAS)` immediately upon generating `PairingResponse`.
+   - Both devices now concurrently display the matching 6-digit SAS code, independently derived via HKDF-SHA256 from the canonical transcript.
+2. **Real-Time Pairing Diagnostic Stages (`PairingStage.swift`):**
+   - Implemented 12-stage lifecycle enum (`qrDetected`, `invitationParsing`, `invitationValidating`, `resolvingHost`, `connectingSocket`, `exchangingEphemeralKeys`, `waitingForMacResponse`, `derivingVerificationCode`, `waitingForMutualConfirmation`, `sendingConfirmation`, `pairingCompleted`, `pairingFailed`).
+   - Wired live progress updates through `PairingScannerView` with bounded timeout timers (10s connection, 15s response, 30s completion) and explicit rejection decoding.
+3. **Dedicated Disconnect Feature:**
+   - Added native Disconnect action (`wifi.slash`) on iPhone dashboard: transitions `.connected` ➜ `.disconnecting` ➜ `.disconnected`.
+   - Releases active ephemeral session keys while preserving pinned `TrustRecord` in Keychain.
+   - Provides seamless Reconnect (`arrow.clockwise`) without requiring QR scanning.
+   - Separated destructive "Forget This Mac" button with modal confirmation alert.
+4. **Action Button Polish:**
+   - Standardized primary SF Symbols: `lock.fill` (Lock Screen), `moon.zzz.fill` (Sleep Mac), `wifi.slash` (Disconnect).
+   - Consistent 32x32 icon framing, native dynamic type, and accessible VoiceOver descriptions.
+5. **Persistent SQLite Audit Logging:**
+   - Parameterized logging for `pairing_initiated`, `qr_invitation_validated`, `sas_confirmed`, `device_connected`, and `device_disconnected`.
+   - Non-blocking execution, WAL mode, zero secrets recorded.
+6. **Automated Test Results:**
+   - 161 package tests executed via `swift test` in `Packages/HandshakeCore` (100% pass, 0 failures).
+   - Dual-target builds verified clean: `Handshake-macOS` (`** BUILD SUCCEEDED **`) and `Handshake-iOS` (`** BUILD SUCCEEDED **`).
+   - Physical iPhone 16e deployment status: classified as `AWAITING USER TESTING` awaiting user device passcode unlock.
+
+
