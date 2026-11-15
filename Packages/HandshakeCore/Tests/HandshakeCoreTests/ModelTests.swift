@@ -191,4 +191,61 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(state.connectedPeer?.displayName, "Studio Mac")
         XCTAssertEqual(state.transport, .localWiFi)
     }
+
+    func testPairingInvitationWithHostAddressAndDeviceID() throws {
+        let hostId = UUID()
+        let host = DeviceIdentity(
+            id: hostId,
+            publicKeyHex: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            displayName: "Direct Mac",
+            deviceType: .mac,
+            modelIdentifier: "Mac15,3",
+            systemVersion: "macOS 15.0"
+        )
+
+        let original = PairingInvitation(
+            hostIdentity: host,
+            ephemeralPublicKeyHex: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+            localPort: 5894,
+            serviceName: "Direct-Host",
+            lifetimeSeconds: 120,
+            verificationCode: "123456",
+            hostAddress: "192.168.1.50"
+        )
+
+        let qrString = original.qrPayloadString
+        XCTAssertTrue(qrString.contains("host=192.168.1.50"))
+        XCTAssertTrue(qrString.contains("hid=\(hostId.uuidString)"))
+
+        let parsed = try PairingInvitation.parse(from: qrString)
+        XCTAssertEqual(parsed.id, original.id)
+        XCTAssertEqual(parsed.hostIdentity.id, hostId)
+        XCTAssertEqual(parsed.hostAddress, "192.168.1.50")
+        XCTAssertEqual(parsed.localPort, 5894)
+        XCTAssertEqual(parsed.serviceName, "Direct-Host")
+        XCTAssertEqual(parsed.verificationCode, "123456")
+    }
+
+    func testNetworkHelperServiceNameNormalization() {
+        XCTAssertEqual(NetworkHelper.normalizeServiceName("MacBook Air"), "MacBook Air")
+        XCTAssertEqual(NetworkHelper.normalizeServiceName("MacBook Air (2)"), "MacBook Air")
+        XCTAssertEqual(NetworkHelper.normalizeServiceName("MacBook Air (12)"), "MacBook Air")
+        XCTAssertEqual(NetworkHelper.normalizeServiceName("MacBook Air-1"), "MacBook Air")
+        XCTAssertEqual(NetworkHelper.normalizeServiceName("MacBook Air-2"), "MacBook Air")
+        XCTAssertEqual(NetworkHelper.normalizeServiceName("   MacBook Air   "), "MacBook Air")
+    }
+
+    func testNetworkHelperHostAddressResolution() {
+        // Must not crash on current platform
+        let wifiIP = NetworkHelper.getLocalWiFiAddress()
+        let mdns = NetworkHelper.getLocalHostName()
+        let preferred = NetworkHelper.getPreferredHostAddress()
+        
+        // On Mac, mdns and preferred host address will be non-empty strings
+        if let ip = wifiIP {
+            XCTAssertFalse(ip.isEmpty)
+        }
+        XCTAssertFalse(mdns.isEmpty)
+        XCTAssertFalse(preferred.isEmpty)
+    }
 }

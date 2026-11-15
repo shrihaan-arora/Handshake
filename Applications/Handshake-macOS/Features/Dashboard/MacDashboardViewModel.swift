@@ -14,6 +14,28 @@ public final class MacDashboardViewModel: ObservableObject {
     @Published public var screenLockGracePeriod: MacLockEngine.ScreenLockGracePeriod = .immediate
     @Published public var lockConfigurationWarning: String? = nil
 
+    public enum MacPairingState: Equatable {
+        case idle
+        case advertising(invitation: PairingInvitation)
+        case awaitingApproval(client: DeviceIdentity, sasCode: String)
+        case completed(client: DeviceIdentity)
+        case failed(reason: String)
+
+        public static func == (lhs: MacPairingState, rhs: MacPairingState) -> Bool {
+            switch (lhs, rhs) {
+            case (.idle, .idle): return true
+            case (.advertising(let a), .advertising(let b)): return a.id == b.id
+            case (.awaitingApproval(let a, let s1), .awaitingApproval(let b, let s2)): return a.id == b.id && s1 == s2
+            case (.completed(let a), .completed(let b)): return a.id == b.id
+            case (.failed(let a), .failed(let b)): return a == b
+            default: return false
+            }
+        }
+    }
+
+    @Published public var pairingState: MacPairingState = .idle
+    private var pairingDecisionContinuation: CheckedContinuation<Bool, Never>? = nil
+
     private var hostIdentity: CryptoIdentity?
     private let trustStore: TrustStore
     private var server: HandshakeServer?
@@ -186,19 +208,66 @@ public final class MacDashboardViewModel: ObservableObject {
     public func startPairingFlow() {
         guard let host = hostIdentity else { return }
 
+        let preferredHost = NetworkHelper.getPreferredHostAddress()
         let hostSession = HostPairingSession(
             hostIdentity: host,
             lifetimeSeconds: 120,
             localPort: 5894,
-            serviceName: "Handshake-Host"
+            serviceName: "Handshake-Host",
+            hostAddress: preferredHost
         )
         self.activeHostPairingSession = hostSession
         self.activeInvitation = hostSession.invitation
-        Task {
-            await self.server?.setActivePairingSession(hostSession)
-        }
+        self.pairingState = .advertising(invitation: hostSession.invitation)
         self.isPairingSheetPresented = true
-        recentAuditEvents.insert("Single-use pairing invitation generated (expires in 120s)", at: 0)
+
+        Task {
+            await self.server?.setActivePairingSession(hostSession) { [weak self] client, sasCode in
+                guard let self = self else { return false }
+                return await withCheckedContinuation { continuation in
+                    Task { @MainActor in
+                        self.pairingDecisionContinuation = continuation
+                        self.pairingState = .awaitingApproval(client: client, sasCode: sasCode)
+                        self.recentAuditEvents.insert("Bilateral pairing requested by '\(client.displayName)'. Awaiting verification.", at: 0)
+                    }
+                }
+            }
+        }
+        recentAuditEvents.insert("Single-use pairing invitation generated (expires in 120s) with host \(preferredHost)", at: 0)
+    }
+
+    public func approvePairing() {
+        pairingDecisionContinuation?.resume(returning: true)
+        pairingDecisionContinuation = nil
+        if case .awaitingApproval(let client, _) = pairingState {
+            pairingState = .completed(client: client)
+            recentAuditEvents.insert("Bilateral pairing approved for '\(client.displayName)'. Established in TrustStore.", at: 0)
+            Task {
+                let updated = await trustStore.allRecords()
+                self.trustedDevices = updated
+            }
+        }
+    }
+
+    public func rejectPairing() {
+        pairingDecisionContinuation?.resume(returning: false)
+        pairingDecisionContinuation = nil
+        pairingState = .failed(reason: "Pairing was rejected on this Mac.")
+        recentAuditEvents.insert("Pairing rejected by host user.", at: 0)
+    }
+
+    public func dismissPairingFlow() {
+        if let continuation = pairingDecisionContinuation {
+            continuation.resume(returning: false)
+            pairingDecisionContinuation = nil
+        }
+        Task {
+            await self.server?.setActivePairingSession(nil)
+        }
+        self.activeHostPairingSession = nil
+        self.activeInvitation = nil
+        self.pairingState = .idle
+        self.isPairingSheetPresented = false
     }
 
     public func revokeDevice(at index: Int) {

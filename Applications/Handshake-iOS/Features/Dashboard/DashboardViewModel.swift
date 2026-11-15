@@ -105,7 +105,7 @@ public final class DashboardViewModel: ObservableObject {
                 let (endpoint, _) = try await client.discoverMac(
                     serviceType: "_handshake._tcp",
                     targetPeer: mac,
-                    timeoutSeconds: 3.5,
+                    timeoutSeconds: 6.0,
                     onStateChange: { [weak self] state in
                         Task { @MainActor in
                             self?.connectionState = state
@@ -195,7 +195,7 @@ public final class DashboardViewModel: ObservableObject {
                 let (endpoint, _) = try await client.discoverMac(
                     serviceType: "_handshake._tcp",
                     targetPeer: mac,
-                    timeoutSeconds: 3.5,
+                    timeoutSeconds: 6.0,
                     onStateChange: { [weak self] state in
                         Task { @MainActor in
                             self?.connectionState = state
@@ -283,7 +283,9 @@ public final class DashboardViewModel: ObservableObject {
             lastAuditedDate: Date()
         )
         self.connectionState = .connected(transport: .localWiFi, peer: record.peer)
-        self.isPairingSheetPresented = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.isPairingSheetPresented = false
+        }
         self.alertTitle = "Pairing Successful"
         self.alertMessage = "\(record.peer.displayName) has been cryptographically paired and pinned."
     }

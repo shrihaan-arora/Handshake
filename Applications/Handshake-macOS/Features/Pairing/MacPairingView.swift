@@ -8,16 +8,35 @@ import AppKit
 
 public struct MacPairingView: View {
     @Environment(\.dismiss) private var dismiss
-    public let invitation: PairingInvitation
-    @State private var timeRemaining: Int
+    @ObservedObject public var viewModel: MacDashboardViewModel
 
-    public init(invitation: PairingInvitation) {
-        self.invitation = invitation
-        self._timeRemaining = State(initialValue: invitation.remainingSeconds())
+    public init(viewModel: MacDashboardViewModel) {
+        self.viewModel = viewModel
     }
 
     public var body: some View {
         VStack(spacing: MacTheme.Spacing.lg) {
+            switch viewModel.pairingState {
+            case .advertising(let invitation):
+                advertisingView(invitation: invitation)
+            case .awaitingApproval(let client, let sasCode):
+                awaitingApprovalView(client: client, sasCode: sasCode)
+            case .completed(let client):
+                completedView(client: client)
+            case .failed(let reason):
+                failedView(reason: reason)
+            case .idle:
+                EmptyView()
+            }
+        }
+        .padding(MacTheme.Spacing.xl)
+        .frame(width: 460)
+    }
+
+    // MARK: - State Views
+
+    private func advertisingView(invitation: PairingInvitation) -> some View {
+        VStack(spacing: MacTheme.Spacing.md) {
             // Header
             VStack(spacing: 4) {
                 Text("Pair iPhone")
@@ -51,37 +70,12 @@ public struct MacPairingView: View {
                 HStack(spacing: MacTheme.Spacing.xs) {
                     Image(systemName: "clock")
                         .font(.caption)
-                    Text("Invitation expires in \(timeRemaining)s")
+                    Text("Invitation expires in \(invitation.remainingSeconds())s")
                         .font(.caption)
                         .monospacedDigit()
                 }
                 .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Invitation expires in \(timeRemaining) seconds")
             }
-
-            // SAS Verification Fingerprint
-            MacCard {
-                VStack(spacing: 4) {
-                    Text("VERIFICATION CODE (SAS)")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .tracking(1.0)
-                        .foregroundStyle(.secondary)
-
-                    Text(invitation.verificationCode)
-                        .font(.system(size: 28, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.primary)
-
-                    Text("Confirm this 6-digit code matches your iPhone screen before approving.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Short Authentication String verification code: \(invitation.verificationCode). Confirm this matches your iPhone screen.")
 
             // Security note
             HStack(spacing: MacTheme.Spacing.xs) {
@@ -93,24 +87,131 @@ public struct MacPairingView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Action Buttons
+            // Cancel Button
             HStack {
                 Button("Cancel") {
+                    viewModel.dismissPairingFlow()
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
 
                 Spacer()
+            }
+        }
+    }
 
-                Button("Done") {
-                    dismiss()
+    private func awaitingApprovalView(client: DeviceIdentity, sasCode: String) -> some View {
+        VStack(spacing: MacTheme.Spacing.lg) {
+            // Header
+            VStack(spacing: 4) {
+                Image(systemName: "iphone.badge.play")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.tint)
+
+                Text("Pairing Request")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("\(client.displayName) (\(client.modelIdentifier)) is requesting to pair.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            // SAS Verification Fingerprint
+            MacCard {
+                VStack(spacing: 4) {
+                    Text("SECURITY CODE (SAS)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .tracking(1.5)
+                        .foregroundStyle(.secondary)
+
+                    Text(sasCode)
+                        .font(.system(size: 36, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.primary)
+                        .tracking(2.0)
+
+                    Text("Confirm this 6-digit code matches your iPhone screen before approving.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, MacTheme.Spacing.xs)
+            }
+
+            // Bilateral Action Buttons
+            HStack(spacing: MacTheme.Spacing.md) {
+                Button("Reject") {
+                    viewModel.rejectPairing()
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button("Approve & Pair") {
+                    viewModel.approvePairing()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(MacTheme.Spacing.xl)
-        .frame(width: 440)
     }
+
+    private func completedView(client: DeviceIdentity) -> some View {
+        VStack(spacing: MacTheme.Spacing.lg) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(.green)
+
+            VStack(spacing: 4) {
+                Text("Pairing Complete")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("\(client.displayName) is now cryptographically trusted and pinned.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button("Done") {
+                viewModel.dismissPairingFlow()
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding(.vertical, MacTheme.Spacing.md)
+    }
+
+    private func failedView(reason: String) -> some View {
+        VStack(spacing: MacTheme.Spacing.lg) {
+            Image(systemName: "xmark.octagon.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.red)
+
+            VStack(spacing: 4) {
+                Text("Pairing Failed")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text(reason)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button("Dismiss") {
+                viewModel.dismissPairingFlow()
+                dismiss()
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.vertical, MacTheme.Spacing.md)
+    }
+
+    // MARK: - QR Generator
 
     private func generateQRCode(from string: String) -> NSImage? {
         guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
@@ -119,7 +220,6 @@ public struct MacPairingView: View {
         filter.setValue("M", forKey: "inputCorrectionLevel")
 
         guard let outputCIImage = filter.outputImage else { return nil }
-        // Scale up sharp pixels
         let transform = CGAffineTransform(scaleX: 10, y: 10)
         let scaledCIImage = outputCIImage.transformed(by: transform)
 
@@ -129,4 +229,3 @@ public struct MacPairingView: View {
         return nsImage
     }
 }
-

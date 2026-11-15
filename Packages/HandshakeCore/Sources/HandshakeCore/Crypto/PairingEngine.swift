@@ -79,7 +79,8 @@ public actor HostPairingSession {
         hostIdentity: CryptoIdentity,
         lifetimeSeconds: TimeInterval = 120,
         localPort: UInt16 = 5894,
-        serviceName: String = "Handshake-Host"
+        serviceName: String = "Handshake-Host",
+        hostAddress: String? = nil
     ) {
         self.hostIdentity = hostIdentity
         self.hostEphemeral = EphemeralKeyExchange()
@@ -94,7 +95,8 @@ public actor HostPairingSession {
             serviceName: serviceName,
             nonce: nonce,
             createdAt: Date(),
-            lifetimeSeconds: lifetimeSeconds
+            lifetimeSeconds: lifetimeSeconds,
+            hostAddress: hostAddress
         )
     }
 

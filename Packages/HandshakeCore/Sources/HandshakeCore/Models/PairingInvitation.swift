@@ -48,6 +48,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
     public let createdAt: Date
     public let expiresAt: Date
     public let verificationCode: String
+    public let hostAddress: String?
 
     public init(
         id: UUID = UUID(),
@@ -58,7 +59,8 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         nonce: String = UUID().uuidString,
         createdAt: Date = Date(),
         lifetimeSeconds: TimeInterval = 120,
-        verificationCode: String = "849201"
+        verificationCode: String = "849201",
+        hostAddress: String? = nil
     ) {
         self.id = id
         self.hostIdentity = hostIdentity
@@ -69,6 +71,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         self.createdAt = createdAt
         self.expiresAt = createdAt.addingTimeInterval(lifetimeSeconds)
         self.verificationCode = verificationCode
+        self.hostAddress = hostAddress
     }
 
     public init(
@@ -80,7 +83,8 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         nonce: String = UUID().uuidString,
         createdAt: Date = Date(),
         expiresAt: Date,
-        verificationCode: String = "849201"
+        verificationCode: String = "849201",
+        hostAddress: String? = nil
     ) {
         self.id = id
         self.hostIdentity = hostIdentity
@@ -91,6 +95,7 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         self.createdAt = createdAt
         self.expiresAt = expiresAt
         self.verificationCode = verificationCode
+        self.hostAddress = hostAddress
     }
 
     /// Determines if the invitation has exceeded its security window.
@@ -121,14 +126,19 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
         components.queryItems = [
             URLQueryItem(name: "v", value: "1"),
             URLQueryItem(name: "id", value: id.uuidString),
+            URLQueryItem(name: "hid", value: hostIdentity.id.uuidString),
             URLQueryItem(name: "name", value: hostIdentity.displayName),
             URLQueryItem(name: "pk", value: hostIdentity.publicKeyHex),
             URLQueryItem(name: "epk", value: ephemeralPublicKeyHex),
             URLQueryItem(name: "port", value: String(localPort)),
+            URLQueryItem(name: "svc", value: serviceName),
             URLQueryItem(name: "nonce", value: nonce),
             URLQueryItem(name: "exp", value: expValue),
             URLQueryItem(name: "code", value: verificationCode)
         ]
+        if let host = hostAddress, !host.isEmpty {
+            components.queryItems?.append(URLQueryItem(name: "host", value: host))
+        }
         return components.url?.absoluteString ?? "handshake://pair?id=\(id.uuidString)"
     }
 
@@ -229,9 +239,11 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
 
         let serviceName = queryMap["svc"] ?? "Handshake-Host"
         let verificationCode = queryMap["code"] ?? "849201"
+        let hostAddress = queryMap["host"]
+        let hostId = queryMap["hid"].flatMap { UUID(uuidString: $0) } ?? UUID()
 
         let hostIdentity = DeviceIdentity(
-            id: UUID(),
+            id: hostId,
             publicKeyHex: pk,
             displayName: name,
             deviceType: .mac,
@@ -249,7 +261,8 @@ public struct PairingInvitation: Codable, Sendable, Identifiable, Equatable {
             nonce: nonce,
             createdAt: expiresAt.addingTimeInterval(-120),
             expiresAt: expiresAt,
-            verificationCode: verificationCode
+            verificationCode: verificationCode,
+            hostAddress: hostAddress
         )
     }
 }

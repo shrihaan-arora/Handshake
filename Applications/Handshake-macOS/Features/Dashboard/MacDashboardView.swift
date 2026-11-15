@@ -156,9 +156,7 @@ public struct MacDashboardView: View {
             viewModel.startServer()
         }
         .sheet(isPresented: $viewModel.isPairingSheetPresented) {
-            if let invitation = viewModel.activeInvitation {
-                MacPairingView(invitation: invitation)
-            }
+            MacPairingView(viewModel: viewModel)
         }
     }
 }

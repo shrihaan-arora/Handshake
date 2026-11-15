@@ -51,7 +51,7 @@ public final class HandshakeClient: Sendable {
     public func discoverMac(
         serviceType: String = "_handshake._tcp",
         targetPeer: DeviceIdentity? = nil,
-        timeoutSeconds: TimeInterval = 3.5,
+        timeoutSeconds: TimeInterval = 8.0,
         onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
     ) async throws -> (endpoint: NWEndpoint, discoveredName: String) {
         onStateChange?(.discovering)
@@ -93,8 +93,21 @@ public final class HandshakeClient: Sendable {
                                 isMatch = true
                             }
                         }
-                        // Fall back to name match if TXT record is omitted or in transit
-                        if !isMatch && matchedName == target.displayName {
+
+                        // Robust normalized name matching
+                        if !isMatch {
+                            let cleanMatched = NetworkHelper.normalizeServiceName(matchedName)
+                            let cleanTarget = NetworkHelper.normalizeServiceName(target.displayName)
+
+                            if cleanMatched.caseInsensitiveCompare(cleanTarget) == .orderedSame ||
+                               cleanMatched.localizedCaseInsensitiveContains(cleanTarget) ||
+                               cleanTarget.localizedCaseInsensitiveContains(cleanMatched) {
+                                isMatch = true
+                            }
+                        }
+
+                        // Single active Handshake service fallback
+                        if !isMatch && results.count == 1 {
                             isMatch = true
                         }
                     } else {
@@ -155,12 +168,56 @@ public final class HandshakeClient: Sendable {
             throw PairingError.invitationExpired
         }
 
-        // 1. Discover host Mac via Bonjour
-        let (endpoint, _) = try await discoverMac(
-            serviceType: "_handshake._tcp",
-            targetPeer: invitation.hostIdentity,
-            timeoutSeconds: 4.0
-        )
+        // 1. Dual-path endpoint resolution (Direct host probe + Bonjour discovery fallback)
+        var targetEndpoint: NWEndpoint? = nil
+
+        if let host = invitation.hostAddress, !host.isEmpty,
+           let nwPort = NWEndpoint.Port(rawValue: invitation.localPort) {
+            let directEndpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: nwPort)
+            let isReachable = await withCheckedContinuation { cont in
+                let probeLock = ResumeLock()
+                let probeQueue = DispatchQueue(label: "com.handshake.probe", qos: .userInitiated)
+                let probeParams = NWParameters.tcp
+                let probeConn = NWConnection(to: directEndpoint, using: probeParams)
+
+                probeQueue.asyncAfter(deadline: .now() + 1.5) {
+                    if probeLock.takeResume() {
+                        probeConn.cancel()
+                        cont.resume(returning: false)
+                    }
+                }
+                probeConn.stateUpdateHandler = { state in
+                    if state == .ready {
+                        if probeLock.takeResume() {
+                            probeConn.cancel()
+                            cont.resume(returning: true)
+                        }
+                    } else if case .failed = state {
+                        if probeLock.takeResume() {
+                            probeConn.cancel()
+                            cont.resume(returning: false)
+                        }
+                    }
+                }
+                probeConn.start(queue: probeQueue)
+            }
+            if isReachable {
+                targetEndpoint = directEndpoint
+            }
+        }
+
+        if targetEndpoint == nil {
+            let (endpoint, _) = try await discoverMac(
+                serviceType: "_handshake._tcp",
+                targetPeer: invitation.hostIdentity,
+                timeoutSeconds: 8.0
+            )
+            targetEndpoint = endpoint
+        }
+
+        guard let endpoint = targetEndpoint else {
+            throw ClientError.macNotFound
+        }
 
         // 2. Establish local TCP connection
         let tcpOptions = NWProtocolTCP.Options()

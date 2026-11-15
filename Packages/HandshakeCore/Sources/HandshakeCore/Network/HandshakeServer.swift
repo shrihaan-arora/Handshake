@@ -8,6 +8,7 @@ import CryptoKit
 public actor HandshakeServer {
 
     public typealias CommandExecutionHandler = @Sendable (CommandMessage, DeviceIdentity) async -> CommandAcknowledgment.ExecutionStatus
+    public typealias PairingApprovalHandler = @Sendable (DeviceIdentity, String) async -> Bool
 
     public enum ServerError: Error, LocalizedError {
         case listenerCreationFailed(String)
@@ -39,6 +40,7 @@ public actor HandshakeServer {
     private var listener: NWListener?
     private var running: Bool = false
     private var activePairingSession: HostPairingSession? = nil
+    private var pairingApprovalHandler: PairingApprovalHandler? = nil
 
 #if os(macOS)
     public init(
@@ -131,8 +133,12 @@ public actor HandshakeServer {
     }
 
     /// Registers an active pairing session on the host Mac to accept incoming pairing requests.
-    public func setActivePairingSession(_ session: HostPairingSession?) {
+    public func setActivePairingSession(
+        _ session: HostPairingSession?,
+        approvalHandler: PairingApprovalHandler? = nil
+    ) {
         self.activePairingSession = session
+        self.pairingApprovalHandler = approvalHandler
     }
 
     /// Stops the local listener and releases all networking resources.
@@ -142,6 +148,7 @@ public actor HandshakeServer {
         listener = nil
         running = false
         activePairingSession = nil
+        pairingApprovalHandler = nil
         peerSequenceCounters.removeAll()
         recentSessionIds.removeAll()
         initialCounterAssigned = false
@@ -211,17 +218,54 @@ public actor HandshakeServer {
                         }
 
                         do {
-                            let (response, _) = try await hostSession.processRequest(pairingRequest)
+                            let (response, derivedSAS) = try await hostSession.processRequest(pairingRequest)
                             let respData = try JSONEncoder().encode(response)
                             try await NetworkFraming.send(data: respData, over: connection)
 
                             // Await confirmation from client
                             let confirmData = try await NetworkFraming.receive(from: connection)
                             let confirmation = try JSONDecoder().decode(PairingConfirmation.self, from: confirmData)
+                            guard confirmation.isApproved else {
+                                let failedComp = PairingCompletion(
+                                    invitationId: pairingRequest.invitationId,
+                                    isSuccessful: false,
+                                    hostApprovalSignatureHex: ""
+                                )
+                                if let compData = try? JSONEncoder().encode(failedComp) {
+                                    try? await NetworkFraming.send(data: compData, over: connection)
+                                }
+                                self.activePairingSession = nil
+                                self.pairingApprovalHandler = nil
+                                break
+                            }
+
+                            // Request Mac user explicit bilateral confirmation over the derived SAS
+                            let macApproved: Bool
+                            if let approvalHandler = self.pairingApprovalHandler {
+                                macApproved = await approvalHandler(pairingRequest.clientIdentity, derivedSAS)
+                            } else {
+                                macApproved = true
+                            }
+
+                            guard macApproved else {
+                                let failedComp = PairingCompletion(
+                                    invitationId: pairingRequest.invitationId,
+                                    isSuccessful: false,
+                                    hostApprovalSignatureHex: ""
+                                )
+                                if let compData = try? JSONEncoder().encode(failedComp) {
+                                    try? await NetworkFraming.send(data: compData, over: connection)
+                                }
+                                self.activePairingSession = nil
+                                self.pairingApprovalHandler = nil
+                                break
+                            }
+
                             let (completion, _) = try await hostSession.processConfirmation(confirmation, trustStore: self.trustStore)
                             let compData = try JSONEncoder().encode(completion)
                             try await NetworkFraming.send(data: compData, over: connection)
                             self.activePairingSession = nil
+                            self.pairingApprovalHandler = nil
                             break
                         } catch {
                             let failedComp = PairingCompletion(
@@ -232,6 +276,8 @@ public actor HandshakeServer {
                             if let compData = try? JSONEncoder().encode(failedComp) {
                                 try? await NetworkFraming.send(data: compData, over: connection)
                             }
+                            self.activePairingSession = nil
+                            self.pairingApprovalHandler = nil
                             break
                         }
                     }
