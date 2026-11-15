@@ -175,4 +175,41 @@ To deploy Handshake directly onto the physical iPhone 16e:
    - Deployed and launched on physical iPhone 16e (`00008140-00042C3902F2801C`).
    - Verified 130 tests pass with zero warnings and zero failures.
 
+---
+
+## Task 3: Authenticated Command Execution
+
+### Operational Command Pipeline Implemented:
+1. **Four-Stage Visual Progression on iPhone:**
+   - Added `CommandExecutionStage` (`idle`, `sending`, `executing`, `completed`, `failed`) to `DashboardViewModel`.
+   - Added `commandStageHUD` banner and active button spinner + badge in `iPhoneDashboardView` and `HandshakeActionButton`.
+   - The UI explicitly renders the required states:
+     - **Sending**: Transmitting encrypted and authenticated AEAD envelope over local TCP channel.
+     - **Executing**: Envelope delivered to network socket; host Mac authorizing and executing system action.
+     - **Completed**: Verified signed digital acknowledgment received from Mac; system action confirmed.
+     - **Failed**: Clear, descriptive error explaining rejection, failure, or network interruption.
+2. **Mac System Action Execution & Verification:**
+   - **LOCK_MAC**:
+     - Pre-flight audit via `/usr/sbin/sysadminctl -screenLock status`. Verified on MacBook Air M4 hardware: `screenLock delay is immediate`.
+     - System action invocation via AppleScript System Events `start current screen saver`.
+     - Independent post-execution confirmation: Polling `running of screen saver preferences` every 100ms for up to 1.5s. Empirically tested and confirmed on MacBook Air M4 (`running == true`). Returns `.confirmedLocked(passwordRequiredImmediately: true)` only after confirmation.
+   - **SLEEP_MAC**:
+     - Pre-flight hardware support check via `IOPMSleepEnabled() != 0`.
+     - Orderly two-stage sleep handshake: Mac server signs `CommandAcknowledgment(status: .executed)`, transmits over TCP, awaits signed `CommandReceipt` from client, flushes socket buffers, and executes `IOPMSleepSystem(rootDomain)`.
+3. **Cryptographic Anti-Replay & Deduplication Enforcement:**
+   - Monotonic per-peer `SequenceCounter` sliding window (1,000 packets) rejects wire envelope re-transmissions.
+   - Server-level FIFO request deduplication (`recentCommandIds: Set<UUID>`, capacity 2,000) rejects identical command message request IDs fail-closed with `.rejected("Duplicate command request ID rejected.")`.
+   - Bounded clock skew enforcement (5.0s max future skew, 30.0s lifetime).
+   - Peer capability authorization check: Rejects commands not permitted by the device's `TrustRecord.authorizedCapabilities`.
+   - Every execution is stamped with wall-clock timestamp and recorded in `recentAuditEvents` on macOS.
+4. **Automated Verification:**
+   - Created dedicated test suite `CommandPipelineTests.swift`:
+     - `testCommandPipelineLockScreenHappyPath`: Passed.
+     - `testCommandPipelineSleepHappyPathWithTwoStageReceipt`: Passed.
+     - `testCommandPipelineRejectUnauthorizedCapability`: Passed.
+     - `testCommandPipelineDuplicateCommandIdRejection`: Passed.
+   - Verified all 137 package tests pass with 0 failures (`swift test`).
+   - Cleanly built and installed on physical MacBook Air M4 and physical iPhone 16e.
+
+
 
