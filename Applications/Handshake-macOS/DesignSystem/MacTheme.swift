@@ -17,6 +17,7 @@ public enum MacTheme {
     }
 
     public enum Colors {
+        public static let accent = Color.accentColor
         public static let connected = Color.green
         public static let idle = Color.secondary
         public static let warning = Color.orange

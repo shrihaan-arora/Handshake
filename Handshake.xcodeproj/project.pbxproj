@@ -30,6 +30,7 @@
 		4567C02B818A563728483958 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */; };
 		4146766024FE0C87784004E4 /* MacDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69080528823D56DBD4CE70A0 /* MacDashboardView.swift */; };
 		056FE67800AC3D295D3073A1 /* MacDashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */; };
+		C011A4D001091A2B3C4D5E6F /* CommandHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D011B4D001091A2B3C4D5E6F /* CommandHistoryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift"; sourceTree = "<group>"; };
 		69080528823D56DBD4CE70A0 /* MacDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift"; sourceTree = "<group>"; };
 		632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift"; sourceTree = "<group>"; };
+		D011B4D001091A2B3C4D5E6F /* CommandHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/History/CommandHistoryView.swift"; sourceTree = "<group>"; };
 		EF079666B2FDC95C01A3DA99 /* Handshake-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D641E469EF756FDF2D13619C /* Handshake-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -119,6 +121,7 @@
 				43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */,
 				69080528823D56DBD4CE70A0 /* MacDashboardView.swift */,
 				632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */,
+				D011B4D001091A2B3C4D5E6F /* CommandHistoryView.swift */,
 			);
 			name = "Handshake-macOS";
 			sourceTree = "<group>";
@@ -274,6 +277,7 @@
 				4567C02B818A563728483958 /* MenuBarView.swift in Sources */,
 				4146766024FE0C87784004E4 /* MacDashboardView.swift in Sources */,
 				056FE67800AC3D295D3073A1 /* MacDashboardViewModel.swift in Sources */,
+				C011A4D001091A2B3C4D5E6F /* CommandHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

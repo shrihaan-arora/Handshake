@@ -34,6 +34,8 @@ public final class MacDashboardViewModel: ObservableObject {
     }
 
     @Published public var pairingState: MacPairingState = .idle
+    @Published public var commandLogs: [CommandLogRecord] = []
+    @Published public var isAuditHistorySheetPresented: Bool = false
     private var pairingDecisionContinuation: CheckedContinuation<Bool, Never>? = nil
 
     private var hostIdentity: CryptoIdentity?
@@ -43,6 +45,11 @@ public final class MacDashboardViewModel: ObservableObject {
     private let lockEngine = MacLockEngine()
     private let sleepEngine = MacSleepEngine()
 
+    private let dbManager: DatabaseManager?
+    private let commandLogRepository: CommandLogRepository?
+    private let pairingEventRepository: PairingEventRepository?
+    private let deviceSessionRepository: DeviceSessionRepository?
+
     public init() {
         self.trustStore = TrustStore(storageAccount: "com.shrihaan.handshake.mac.truststore")
         self.connectionState = .disconnected
@@ -51,6 +58,22 @@ public final class MacDashboardViewModel: ObservableObject {
             "Handshake V1 Companion Initialized",
             "Zero cloud infrastructure: local peer-to-peer transport only"
         ]
+
+        do {
+            let db = try DatabaseManager()
+            self.dbManager = db
+            self.commandLogRepository = CommandLogRepository(dbManager: db)
+            self.pairingEventRepository = PairingEventRepository(dbManager: db)
+            self.deviceSessionRepository = DeviceSessionRepository(dbManager: db)
+        } catch {
+            print("Failed to initialize database manager: \(error)")
+            self.dbManager = nil
+            self.commandLogRepository = nil
+            self.pairingEventRepository = nil
+            self.deviceSessionRepository = nil
+        }
+
+        refreshCommandLogs()
 
         Task {
             await initializeIdentityAndTrust()
@@ -120,9 +143,16 @@ public final class MacDashboardViewModel: ObservableObject {
             serviceType: "_handshake._tcp",
             hostIdentity: identity,
             trustStore: trustStore,
+            commandLogRepository: commandLogRepository,
+            pairingEventRepository: pairingEventRepository,
+            deviceSessionRepository: deviceSessionRepository,
             executionHandler: { [weak self] message, peer in
                 guard let self = self else { return .rejected("Mac host unavailable") }
-                return await self.handleIncomingCommand(message, from: peer)
+                let status = await self.handleIncomingCommand(message, from: peer)
+                Task { @MainActor in
+                    self.refreshCommandLogs()
+                }
+                return status
             }
         )
         self.server = newServer
@@ -246,19 +276,45 @@ public final class MacDashboardViewModel: ObservableObject {
         pairingDecisionContinuation = nil
         if case .awaitingApproval(let client, _) = pairingState {
             pairingState = .completed(client: client)
+            _ = try? pairingEventRepository?.insert(PairingEventRecord(
+                peerDeviceId: client.id.uuidString,
+                peerDeviceName: client.displayName,
+                eventType: "pairing_approved",
+                result: "success"
+            ))
             recentAuditEvents.insert("Bilateral pairing approved for '\(client.displayName)'. Established in TrustStore.", at: 0)
             Task {
                 let updated = await trustStore.allRecords()
                 self.trustedDevices = updated
+                self.refreshCommandLogs()
             }
         }
     }
 
     public func rejectPairing() {
+        if case .awaitingApproval(let client, _) = pairingState {
+            _ = try? pairingEventRepository?.insert(PairingEventRecord(
+                peerDeviceId: client.id.uuidString,
+                peerDeviceName: client.displayName,
+                eventType: "pairing_rejected",
+                result: "rejected"
+            ))
+        }
         pairingDecisionContinuation?.resume(returning: false)
         pairingDecisionContinuation = nil
         pairingState = .failed(reason: "Pairing was rejected on this Mac.")
         recentAuditEvents.insert("Pairing rejected by host user.", at: 0)
+        refreshCommandLogs()
+    }
+
+    public func refreshCommandLogs() {
+        guard let repo = commandLogRepository else { return }
+        do {
+            let logs = try repo.fetchRecent(limit: 100)
+            self.commandLogs = logs
+        } catch {
+            print("Failed to fetch command logs: \(error)")
+        }
     }
 
     public func dismissPairingFlow() {

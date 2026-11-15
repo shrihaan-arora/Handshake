@@ -116,11 +116,26 @@ public struct MacDashboardView: View {
 
                 // Audit Log Section
                 VStack(alignment: .leading, spacing: MacTheme.Spacing.xs) {
-                    Text("SECURITY AUDIT LOG")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .tracking(1.0)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        Text("SECURITY AUDIT LOG")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .tracking(1.0)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Button(action: {
+                            viewModel.refreshCommandLogs()
+                            viewModel.isAuditHistorySheetPresented = true
+                        }) {
+                            Label("Command History (\(viewModel.commandLogs.count))", systemImage: "cylinder.split.1x2.fill")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityLabel("Open SQLite Command Audit History")
+                    }
 
                     MacCard {
                         VStack(alignment: .leading, spacing: 6) {
@@ -157,6 +172,9 @@ public struct MacDashboardView: View {
         }
         .sheet(isPresented: $viewModel.isPairingSheetPresented) {
             MacPairingView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.isAuditHistorySheetPresented) {
+            CommandHistoryView(viewModel: viewModel)
         }
     }
 }

@@ -34,6 +34,9 @@ public actor HandshakeServer {
     private var recentCommandIds: Set<UUID> = []
     private var initialCounterAssigned: Bool = false
     private let executionHandler: CommandExecutionHandler
+    private let commandLogRepository: CommandLogRepository?
+    private let pairingEventRepository: PairingEventRepository?
+    private let deviceSessionRepository: DeviceSessionRepository?
     #if os(macOS)
     private let sleepEngine: MacSleepEngine
     #endif
@@ -51,6 +54,9 @@ public actor HandshakeServer {
         trustStore: TrustStore,
         sequenceCounter: SequenceCounter = SequenceCounter(),
         sleepEngine: MacSleepEngine = MacSleepEngine(),
+        commandLogRepository: CommandLogRepository? = nil,
+        pairingEventRepository: PairingEventRepository? = nil,
+        deviceSessionRepository: DeviceSessionRepository? = nil,
         executionHandler: @escaping CommandExecutionHandler
     ) {
         self.port = port
@@ -59,6 +65,9 @@ public actor HandshakeServer {
         self.trustStore = trustStore
         self.initialSequenceCounter = sequenceCounter
         self.sleepEngine = sleepEngine
+        self.commandLogRepository = commandLogRepository
+        self.pairingEventRepository = pairingEventRepository
+        self.deviceSessionRepository = deviceSessionRepository
         self.executionHandler = executionHandler
     }
 #else
@@ -68,6 +77,9 @@ public actor HandshakeServer {
         hostIdentity: CryptoIdentity,
         trustStore: TrustStore,
         sequenceCounter: SequenceCounter = SequenceCounter(),
+        commandLogRepository: CommandLogRepository? = nil,
+        pairingEventRepository: PairingEventRepository? = nil,
+        deviceSessionRepository: DeviceSessionRepository? = nil,
         executionHandler: @escaping CommandExecutionHandler
     ) {
         self.port = port
@@ -75,6 +87,9 @@ public actor HandshakeServer {
         self.hostIdentity = hostIdentity
         self.trustStore = trustStore
         self.initialSequenceCounter = sequenceCounter
+        self.commandLogRepository = commandLogRepository
+        self.pairingEventRepository = pairingEventRepository
+        self.deviceSessionRepository = deviceSessionRepository
         self.executionHandler = executionHandler
     }
 #endif
@@ -203,7 +218,15 @@ public actor HandshakeServer {
         connection.start(queue: queue)
 
         Task {
+            var activeSessionDbId: Int64? = nil
             defer {
+                if let sessionDbId = activeSessionDbId {
+                    try? self.deviceSessionRepository?.endSession(
+                        id: sessionDbId,
+                        endedAt: DatabaseManager.iso8601String(),
+                        status: "closed"
+                    )
+                }
                 connection.cancel()
             }
 
@@ -221,12 +244,28 @@ public actor HandshakeServer {
 
                     // Check if incoming frame is a PairingRequest
                     if let pairingRequest = try? JSONDecoder().decode(PairingRequest.self, from: rawData) {
+                        _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                            peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                            peerDeviceName: pairingRequest.clientIdentity.displayName,
+                            eventType: "pairing_requested",
+                            result: "received"
+                        ))
+
                         guard let hostSession = self.activePairingSession else {
                             try await sendRejection(
                                 commandId: pairingRequest.invitationId,
+                                peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                commandType: "PAIRING_REQUEST",
                                 reason: "No active pairing session on Mac. Open pairing screen on Mac.",
                                 over: connection
                             )
+                            _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                eventType: "pairing_rejected",
+                                result: "failed"
+                            ))
                             break
                         }
 
@@ -249,6 +288,12 @@ public actor HandshakeServer {
                                 }
                                 self.activePairingSession = nil
                                 self.pairingApprovalHandler = nil
+                                _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                    peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                    peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                    eventType: "pairing_rejected_by_client",
+                                    result: "failed"
+                                ))
                                 break
                             }
 
@@ -271,6 +316,12 @@ public actor HandshakeServer {
                                 }
                                 self.activePairingSession = nil
                                 self.pairingApprovalHandler = nil
+                                _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                    peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                    peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                    eventType: "pairing_rejected_by_host",
+                                    result: "failed"
+                                ))
                                 break
                             }
 
@@ -279,6 +330,12 @@ public actor HandshakeServer {
                             try await NetworkFraming.send(data: compData, over: connection)
                             self.activePairingSession = nil
                             self.pairingApprovalHandler = nil
+                            _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                eventType: "pairing_completed",
+                                result: "success"
+                            ))
                             break
                         } catch {
                             let failedComp = PairingCompletion(
@@ -291,6 +348,12 @@ public actor HandshakeServer {
                             }
                             self.activePairingSession = nil
                             self.pairingApprovalHandler = nil
+                            _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
+                                peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
+                                peerDeviceName: pairingRequest.clientIdentity.displayName,
+                                eventType: "pairing_failed",
+                                result: "failed"
+                            ))
                             break
                         }
                     }
@@ -301,6 +364,9 @@ public actor HandshakeServer {
                         guard HandshakeTime.isTimestampValid(sessionInit.timestampMilliseconds) else {
                             try await sendRejection(
                                 commandId: sessionInit.id,
+                                peerDeviceId: sessionInit.clientIdentity.id.uuidString,
+                                peerDeviceName: sessionInit.clientIdentity.displayName,
+                                commandType: "SESSION_INIT",
                                 reason: "Session initiation failed: clock skew exceeded.",
                                 over: connection
                             )
@@ -311,6 +377,9 @@ public actor HandshakeServer {
                         guard self.validateAndRecordSessionId(sessionInit.id) else {
                             try await sendRejection(
                                 commandId: sessionInit.id,
+                                peerDeviceId: sessionInit.clientIdentity.id.uuidString,
+                                peerDeviceName: sessionInit.clientIdentity.displayName,
+                                commandType: "SESSION_INIT",
                                 reason: "Session initiation failed: replayed session identifier.",
                                 over: connection
                             )
@@ -321,6 +390,9 @@ public actor HandshakeServer {
                         guard let trustRecord = await trustStore.getRecord(publicKeyHex: sessionInit.clientIdentity.publicKeyHex) else {
                             try await sendRejection(
                                 commandId: sessionInit.id,
+                                peerDeviceId: sessionInit.clientIdentity.id.uuidString,
+                                peerDeviceName: sessionInit.clientIdentity.displayName,
+                                commandType: "SESSION_INIT",
                                 reason: "Device is not paired or recognized.",
                                 over: connection
                             )
@@ -330,6 +402,9 @@ public actor HandshakeServer {
                         guard !trustRecord.isRevoked else {
                             try await sendRejection(
                                 commandId: sessionInit.id,
+                                peerDeviceId: trustRecord.peer.id.uuidString,
+                                peerDeviceName: trustRecord.peer.displayName,
+                                commandType: "SESSION_INIT",
                                 reason: "Device trust has been revoked.",
                                 over: connection
                             )
@@ -345,6 +420,9 @@ public actor HandshakeServer {
                               ) else {
                             try await sendRejection(
                                 commandId: sessionInit.id,
+                                peerDeviceId: trustRecord.peer.id.uuidString,
+                                peerDeviceName: trustRecord.peer.displayName,
+                                commandType: "SESSION_INIT",
                                 reason: "Session initiation failed: invalid client cryptographic signature.",
                                 over: connection
                             )
@@ -391,6 +469,15 @@ public actor HandshakeServer {
                             clientToHostNonceSalt: keys.clientNonceSalt,
                             hostToClientNonceSalt: keys.hostNonceSalt
                         )
+
+                        // Audit device session start
+                        let sessionRecord = DeviceSessionRecord(
+                            peerDeviceId: trustRecord.peer.id.uuidString,
+                            sessionStartedAt: DatabaseManager.iso8601String(),
+                            status: "active"
+                        )
+                        activeSessionDbId = try? self.deviceSessionRepository?.insert(sessionRecord)
+
                         continue
                     }
 
@@ -400,6 +487,9 @@ public actor HandshakeServer {
                     guard let trustRecord = await trustStore.getRecord(publicKeyHex: envelope.senderPublicKeyHex) else {
                         try await sendRejection(
                             commandId: envelope.id,
+                            peerDeviceId: "unknown",
+                            peerDeviceName: nil,
+                            commandType: "UNKNOWN",
                             reason: "Device is not paired or recognized.",
                             over: connection
                         )
@@ -409,6 +499,9 @@ public actor HandshakeServer {
                     guard !trustRecord.isRevoked else {
                         try await sendRejection(
                             commandId: envelope.id,
+                            peerDeviceId: trustRecord.peer.id.uuidString,
+                            peerDeviceName: trustRecord.peer.displayName,
+                            commandType: "UNKNOWN",
                             reason: "Device trust has been revoked.",
                             over: connection
                         )
@@ -423,6 +516,9 @@ public actor HandshakeServer {
                         guard !session.isExpired() else {
                             try await sendRejection(
                                 commandId: envelope.id,
+                                peerDeviceId: session.peer.id.uuidString,
+                                peerDeviceName: session.peer.displayName,
+                                commandType: "UNKNOWN",
                                 reason: "Session expired. Please reconnect.",
                                 over: connection
                             )
@@ -431,6 +527,9 @@ public actor HandshakeServer {
                         guard envelope.senderPublicKeyHex.lowercased() == session.peer.publicKeyHex.lowercased() else {
                             try await sendRejection(
                                 commandId: envelope.id,
+                                peerDeviceId: session.peer.id.uuidString,
+                                peerDeviceName: session.peer.displayName,
+                                commandType: "UNKNOWN",
                                 reason: "Sender does not match active session peer.",
                                 over: connection
                             )
@@ -462,6 +561,9 @@ public actor HandshakeServer {
                     } catch {
                         try await sendRejection(
                             commandId: envelope.id,
+                            peerDeviceId: trustRecord.peer.id.uuidString,
+                            peerDeviceName: trustRecord.peer.displayName,
+                            commandType: "ENCRYPTED_COMMAND",
                             reason: "Authentication failed: \(error.localizedDescription)",
                             over: connection
                         )
@@ -472,6 +574,9 @@ public actor HandshakeServer {
                     guard self.validateAndRecordCommandId(message.id) else {
                         try await sendRejection(
                             commandId: message.id,
+                            peerDeviceId: trustRecord.peer.id.uuidString,
+                            peerDeviceName: trustRecord.peer.displayName,
+                            commandType: message.command.rawValue,
                             reason: "Duplicate command request ID rejected.",
                             over: connection
                         )
@@ -481,18 +586,71 @@ public actor HandshakeServer {
                     // 4. Verify command type is authorized in trust record
                     guard trustRecord.authorizedCapabilities.contains(message.command) else {
                         try await sendRejection(
-                            commandId: envelope.id,
+                            commandId: message.id,
+                            peerDeviceId: trustRecord.peer.id.uuidString,
+                            peerDeviceName: trustRecord.peer.displayName,
+                            commandType: message.command.rawValue,
                             reason: "Command \(message.command.displayName) not authorized for this device.",
                             over: connection
                         )
                         continue
                     }
 
-                    // 5. Update last seen timestamp
+                    // 5. Update last seen timestamp & record command receipt
                     try? await trustStore.updateLastSeen(id: trustRecord.id)
+
+                    let receivedAt = DatabaseManager.iso8601String()
+                    _ = try? commandLogRepository?.insert(CommandLogRecord(
+                        requestId: message.id.uuidString,
+                        peerDeviceId: trustRecord.peer.id.uuidString,
+                        peerDeviceName: trustRecord.peer.displayName,
+                        commandType: message.command.rawValue,
+                        receivedAt: receivedAt,
+                        status: "received",
+                        protocolVersion: "1.0"
+                    ))
+
+                    // Mark execution started in audit log
+                    let startedAt = DatabaseManager.iso8601String()
+                    try? commandLogRepository?.markExecutionStarted(
+                        requestId: message.id.uuidString,
+                        startedAt: startedAt
+                    )
 
                     // 6. Execute authorized command on host Mac
                     let status = await executionHandler(message, trustRecord.peer)
+
+                    // Record completion status in audit log
+                    let completedAt = DatabaseManager.iso8601String()
+                    let statusStr: String
+                    let resultCode: String?
+                    let errorMsg: String?
+                    switch status {
+                    case .executed:
+                        statusStr = "executed"
+                        resultCode = "SUCCESS"
+                        errorMsg = nil
+                    case .failed(let reason):
+                        statusStr = "failed"
+                        resultCode = "FAILED"
+                        errorMsg = reason
+                    case .rejected(let reason):
+                        statusStr = "rejected"
+                        resultCode = "REJECTED"
+                        errorMsg = reason
+                    case .received:
+                        statusStr = "received"
+                        resultCode = "PENDING"
+                        errorMsg = nil
+                    }
+
+                    try? commandLogRepository?.updateCompletion(
+                        requestId: message.id.uuidString,
+                        status: statusStr,
+                        completedAt: completedAt,
+                        resultCode: resultCode,
+                        errorMessage: errorMsg
+                    )
 
                     // 7. Send signed acknowledgment
                     let ack = try makeAcknowledgment(commandId: message.id, status: status)
@@ -566,9 +724,21 @@ public actor HandshakeServer {
 
     private func sendRejection(
         commandId: UUID,
+        peerDeviceId: String = "unknown",
+        peerDeviceName: String? = nil,
+        commandType: String = "unknown",
         reason: String,
         over connection: NWConnection
     ) async throws {
+        _ = try? commandLogRepository?.insert(CommandLogRecord(
+            requestId: commandId.uuidString,
+            peerDeviceId: peerDeviceId,
+            peerDeviceName: peerDeviceName,
+            commandType: commandType,
+            status: "rejected",
+            resultCode: "REJECTED",
+            errorMessage: reason
+        ))
         let ack = try makeAcknowledgment(commandId: commandId, status: .rejected(reason))
         let ackData = try JSONEncoder().encode(ack)
         try await NetworkFraming.send(data: ackData, over: connection)
