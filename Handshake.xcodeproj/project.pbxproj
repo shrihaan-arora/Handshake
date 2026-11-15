@@ -16,6 +16,7 @@
 		10F06B36E1D98255BE18C7B8 /* StatusPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37CB9695DEE7334D88F50887 /* StatusPillView.swift */; };
 		091244B5669E5DEED53FEA7D /* HandshakeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */; };
 		0CE0015E863DB949314EB3EA /* CameraPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026996BA9E680D5B03D61083 /* CameraPermissionManager.swift */; };
+		B2C3D4E5F6A7B8C9D0E1F2A3 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* CameraManager.swift */; };
 		D72B7B80AA0383CC61324E1A /* PairingScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */; };
 		CEFD6A2F8A1DCD5377345425 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE56925AE2B4AF0E107B98DD /* QRScannerView.swift */; };
 		718E07E3F2CD92240596D5EF /* SecurityAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */; };
@@ -39,6 +40,7 @@
 		37CB9695DEE7334D88F50887 /* StatusPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/StatusPillView.swift"; sourceTree = "<group>"; };
 		EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/App/HandshakeApp.swift"; sourceTree = "<group>"; };
 		026996BA9E680D5B03D61083 /* CameraPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/CameraPermissionManager.swift"; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/CameraManager.swift"; sourceTree = "<group>"; };
 		19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift"; sourceTree = "<group>"; };
 		EE56925AE2B4AF0E107B98DD /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/QRScannerView.swift"; sourceTree = "<group>"; };
 		81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift"; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 				37CB9695DEE7334D88F50887 /* StatusPillView.swift */,
 				EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */,
 				026996BA9E680D5B03D61083 /* CameraPermissionManager.swift */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* CameraManager.swift */,
 				19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */,
 				EE56925AE2B4AF0E107B98DD /* QRScannerView.swift */,
 				81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */,
@@ -250,6 +253,7 @@
 				10F06B36E1D98255BE18C7B8 /* StatusPillView.swift in Sources */,
 				091244B5669E5DEED53FEA7D /* HandshakeApp.swift in Sources */,
 				0CE0015E863DB949314EB3EA /* CameraPermissionManager.swift in Sources */,
+				B2C3D4E5F6A7B8C9D0E1F2A3 /* CameraManager.swift in Sources */,
 				D72B7B80AA0383CC61324E1A /* PairingScannerView.swift in Sources */,
 				CEFD6A2F8A1DCD5377345425 /* QRScannerView.swift in Sources */,
 				718E07E3F2CD92240596D5EF /* SecurityAuditView.swift in Sources */,

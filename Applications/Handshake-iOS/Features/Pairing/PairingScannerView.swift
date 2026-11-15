@@ -10,7 +10,6 @@ public struct PairingScannerView: View {
     @State private var isTorchOn: Bool = false
     @State private var isScanningActive: Bool = true
     @State private var currentStep: ScannerStep = .scanning
-    @State private var scannerLaserOffset: CGFloat = -100
 
     public enum ScannerStep {
         case scanning
@@ -69,6 +68,7 @@ public struct PairingScannerView: View {
             .onDisappear {
                 isTorchOn = false
                 isScanningActive = false
+                CameraManager.shared.stopSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 permissionManager.refreshStatus()
@@ -343,6 +343,7 @@ public struct PairingScannerView: View {
                 Button {
                     self.isScanningActive = true
                     self.currentStep = .scanning
+                    CameraManager.shared.startSession()
                 } label: {
                     Text("Scan Again")
                         .font(.headline)
@@ -368,25 +369,8 @@ public struct PairingScannerView: View {
                 .stroke(Color.white.opacity(0.85), lineWidth: 3)
                 .frame(width: 220, height: 220)
 
-            // Animated scanning laser beam
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.clear, Color.accentColor.opacity(0.8), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 216, height: 3)
-                .offset(y: scannerLaserOffset)
-                .onAppear {
-                    withAnimation(
-                        .easeInOut(duration: 1.6)
-                        .repeatForever(autoreverses: true)
-                    ) {
-                        scannerLaserOffset = 100
-                    }
-                }
+            // Isolated laser beam subview: prevents parent view invalidation
+            ScanningLaserBeamView()
         }
     }
 
@@ -525,3 +509,31 @@ public struct PairingScannerView: View {
         }
     }
 }
+
+/// Isolated animated scanning laser beam view.
+/// Encapsulates animation state to avoid triggering parent view layout re-evaluations.
+private struct ScanningLaserBeamView: View {
+    @State private var offset: CGFloat = -100
+
+    var body: some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    colors: [Color.clear, Color.accentColor.opacity(0.8), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: 216, height: 3)
+            .offset(y: offset)
+            .onAppear {
+                withAnimation(
+                    .easeInOut(duration: 1.6)
+                    .repeatForever(autoreverses: true)
+                ) {
+                    offset = 100
+                }
+            }
+    }
+}
+

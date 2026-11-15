@@ -138,3 +138,41 @@ To deploy Handshake directly onto the physical iPhone 16e:
    - Built and deployed to iPhone 16e (`00008140-00042C3902F2801C`).
    - All 122 package unit tests passed, macOS and iOS builds clean.
 
+---
+
+## 8. Physical Camera Pipeline & QR Scanner Overhaul (Task 1 Complete)
+
+### Root Cause Analysis of Black Preview & Non-Completing QR Scans:
+1. **SwiftUI Animation View Invalidation Flooding:**
+   - In `PairingScannerView.swift`, the reticle scanning laser beam animated `scannerLaserOffset: CGFloat` continuously at 60–120 fps. Because this was held in `@State` on `PairingScannerView`, the entire view body re-evaluated 60–120 times per second.
+   - On every frame, `updateUIView` on `QRScannerView` was invoked, repeatedly calling `setTorch` (`sessionQueue.async { try device.lockForConfiguration() }`) and `connection.videoOrientation = ...`.
+   - Repeatedly re-setting `connection.videoOrientation` on an active AVCaptureConnection forces AVFoundation to continuously flush and reset its video compositor pipeline buffers.
+   - Repeatedly locking device configuration on the serial `sessionQueue` flooded the queue, blocking frame processing and preventing the video sensor pipeline from ever delivering stable frames to the preview layer or the metadata output.
+2. **Metadata Timing Race:**
+   - Querying `metadataOutput.availableMetadataObjectTypes.contains(.qr)` before the hardware stream was negotiated resulted in an empty set, permanently preventing `metadataOutput.metadataObjectTypes = [.qr]` from being assigned.
+3. **Architecture Monolith:**
+   - AVFoundation lifecycle logic was tightly coupled inside SwiftUI `Coordinator`, creating lifecycle leaks across sheet presentations.
+
+### Architectural Solution Implemented:
+1. **Dedicated `CameraManager` (`Applications/Handshake-iOS/Features/Pairing/CameraManager.swift`):**
+   - Singleton capture manager enforcing single-session lifecycle (`unconfigured` $\to$ `configuring` $\to$ `configured` $\to$ `running` $\to$ `stopped`).
+   - Dedicated serial queue (`com.handshake.camera.session`) and interactive metadata queue (`com.handshake.camera.metadata`).
+   - Hardware discovery: Prioritizes `.builtInWideAngleCamera` on back (Apple standard for macro barcode/QR focus across all iPhones including iPhone 16e).
+   - Continuous autofocus (`.continuousAutoFocus`) and autoexposure (`.continuousAutoExposure`) for crisp Mac screen QR code capture.
+   - Session preset: `.photo` with automatic fallback to `.high`.
+   - Torch state deduplication: Checks `currentTorchMode == targetMode` before touching device configuration.
+2. **Orientation & Layout Deduplication (`QRScannerView.swift`):**
+   - `CameraPreviewView` updates `previewLayer.frame = bounds` in `layoutSubviews()`.
+   - Deduplicated `connection.videoOrientation`: Only writes to `connection.videoOrientation` if `connection.videoOrientation != targetOrientation`, eliminating pipeline buffer resets.
+3. **Isolated Laser Beam Animation (`PairingScannerView.swift`):**
+   - Encapsulated laser animation in private `ScanningLaserBeamView: View` with private `@State`.
+   - Completely decoupled high-frequency display link animation from `PairingScannerView.body` and `QRScannerView`.
+4. **QR Validation & Debouncing:**
+   - Enforces `stringValue.hasPrefix("handshake://pair")` prior to triggering success haptics and forwarding to `@MainActor` callback.
+   - Debounces identical scans within 1.5 seconds.
+5. **Physical Hardware Validation:**
+   - Compiled for `arm64-apple-ios` with personal team profile `DW8DPY9ALB`.
+   - Deployed and launched on physical iPhone 16e (`00008140-00042C3902F2801C`).
+   - Verified 130 tests pass with zero warnings and zero failures.
+
+
