@@ -3,53 +3,53 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		056FE67800AC3D295D3073A1 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632B738E65B6B73612DE0F51 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift */; };
+		091244B5669E5DEED53FEA7D /* Applications/Handshake-iOS/App/HandshakeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0D2FFDD0C8C2DCD93A018E /* Applications/Handshake-iOS/App/HandshakeApp.swift */; };
+		10F06B36E1D98255BE18C7B8 /* Applications/Handshake-iOS/DesignSystem/StatusPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37CB9695DEE7334D88F50887 /* Applications/Handshake-iOS/DesignSystem/StatusPillView.swift */; };
+		318D11E2E3717147242D0BF9 /* Applications/Handshake-macOS/DesignSystem/MacCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F48EDBE818D2B224CADFF8 /* Applications/Handshake-macOS/DesignSystem/MacCard.swift */; };
+		4146766024FE0C87784004E4 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69080528823D56DBD4CE70A0 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift */; };
+		4567C02B818A563728483958 /* Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43EE1DC8E34F6BCA25260EC2 /* Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift */; };
+		579B3C81559C3D9D125CA532 /* Applications/Handshake-macOS/App/HandshakeMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83EE21ACC80B60EAA570DDF0 /* Applications/Handshake-macOS/App/HandshakeMacApp.swift */; };
 		6621ADCE71F31E9D0C50903E /* HandshakeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4AB27CCD7AC08D3CAB94D392 /* HandshakeCore */; };
+		718E07E3F2CD92240596D5EF /* Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AD80EC33C860F22C1853B9 /* Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift */; };
 		74B83CFFC49E08B917347A4C /* HandshakeCore in Frameworks */ = {isa = PBXBuildFile; productRef = B4BA0DB3B16A20A18C288F7F /* HandshakeCore */; };
-		FA0CE12FD07FD020355CF7B1 /* HandshakeActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8E4D1A97BD91A16D200D3C /* HandshakeActionButton.swift */; };
-		7B33D650542E725410CCC142 /* HandshakeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B33F6829AD8AE9B271A6161 /* HandshakeCard.swift */; };
-		7733E9832671AC60A51A9DE7 /* HandshakeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8833161D6770E5C56B882E /* HandshakeTheme.swift */; };
-		C3FF92E98E3A65F694D0DCA6 /* SecurityShieldBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E6FD493987AD46F11421D61 /* SecurityShieldBadge.swift */; };
-		10F06B36E1D98255BE18C7B8 /* StatusPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37CB9695DEE7334D88F50887 /* StatusPillView.swift */; };
-		091244B5669E5DEED53FEA7D /* HandshakeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */; };
-		D72B7B80AA0383CC61324E1A /* PairingScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */; };
-		718E07E3F2CD92240596D5EF /* SecurityAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */; };
-		BD9E5A8839388E598F70C767 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D947704831C92065C6E978CA /* DashboardViewModel.swift */; };
-		EA08B9B12B902841058E1345 /* iPhoneDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC4C1BF7C2A23EF38FE5D2F /* iPhoneDashboardView.swift */; };
-		318D11E2E3717147242D0BF9 /* MacCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F48EDBE818D2B224CADFF8 /* MacCard.swift */; };
-		CA0DBC0AF03567B18EFE0079 /* MacTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DE3AAEAC769D52A7B8A176D /* MacTheme.swift */; };
-		579B3C81559C3D9D125CA532 /* HandshakeMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83EE21ACC80B60EAA570DDF0 /* HandshakeMacApp.swift */; };
-		B1896057177EFEFBAE61C268 /* MacPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A0E3377AC7E64791B88CCC /* MacPairingView.swift */; };
-		E7D0871234DF412B4C34DE96 /* TrustManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FBC228AF171A662ED801C97 /* TrustManagementView.swift */; };
-		4567C02B818A563728483958 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */; };
-		4146766024FE0C87784004E4 /* MacDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69080528823D56DBD4CE70A0 /* MacDashboardView.swift */; };
-		056FE67800AC3D295D3073A1 /* MacDashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */; };
+		7733E9832671AC60A51A9DE7 /* Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8833161D6770E5C56B882E /* Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift */; };
+		7B33D650542E725410CCC142 /* Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B33F6829AD8AE9B271A6161 /* Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift */; };
+		B1896057177EFEFBAE61C268 /* Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A0E3377AC7E64791B88CCC /* Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift */; };
+		BD9E5A8839388E598F70C767 /* Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D947704831C92065C6E978CA /* Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift */; };
+		C3FF92E98E3A65F694D0DCA6 /* Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E6FD493987AD46F11421D61 /* Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift */; };
+		CA0DBC0AF03567B18EFE0079 /* Applications/Handshake-macOS/DesignSystem/MacTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DE3AAEAC769D52A7B8A176D /* Applications/Handshake-macOS/DesignSystem/MacTheme.swift */; };
+		D72B7B80AA0383CC61324E1A /* Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B1FC244756EA8EA650EE8C /* Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift */; };
+		E7D0871234DF412B4C34DE96 /* Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FBC228AF171A662ED801C97 /* Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift */; };
+		EA08B9B12B902841058E1345 /* Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC4C1BF7C2A23EF38FE5D2F /* Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift */; };
+		FA0CE12FD07FD020355CF7B1 /* Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8E4D1A97BD91A16D200D3C /* Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		8F8E4D1A97BD91A16D200D3C /* HandshakeActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift"; sourceTree = "<group>"; };
-		2B33F6829AD8AE9B271A6161 /* HandshakeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift"; sourceTree = "<group>"; };
-		4E8833161D6770E5C56B882E /* HandshakeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift"; sourceTree = "<group>"; };
-		6E6FD493987AD46F11421D61 /* SecurityShieldBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift"; sourceTree = "<group>"; };
-		37CB9695DEE7334D88F50887 /* StatusPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/StatusPillView.swift"; sourceTree = "<group>"; };
-		EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/App/HandshakeApp.swift"; sourceTree = "<group>"; };
-		19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift"; sourceTree = "<group>"; };
-		81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift"; sourceTree = "<group>"; };
-		D947704831C92065C6E978CA /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift"; sourceTree = "<group>"; };
-		8FC4C1BF7C2A23EF38FE5D2F /* iPhoneDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift"; sourceTree = "<group>"; };
-		D1F48EDBE818D2B224CADFF8 /* MacCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/DesignSystem/MacCard.swift"; sourceTree = "<group>"; };
-		4DE3AAEAC769D52A7B8A176D /* MacTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/DesignSystem/MacTheme.swift"; sourceTree = "<group>"; };
-		83EE21ACC80B60EAA570DDF0 /* HandshakeMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/App/HandshakeMacApp.swift"; sourceTree = "<group>"; };
-		59A0E3377AC7E64791B88CCC /* MacPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift"; sourceTree = "<group>"; };
-		3FBC228AF171A662ED801C97 /* TrustManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift"; sourceTree = "<group>"; };
-		43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift"; sourceTree = "<group>"; };
-		69080528823D56DBD4CE70A0 /* MacDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift"; sourceTree = "<group>"; };
-		632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift"; sourceTree = "<group>"; };
-		EF079666B2FDC95C01A3DA99 /* Handshake-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		19B1FC244756EA8EA650EE8C /* Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift"; sourceTree = "<group>"; };
+		2B33F6829AD8AE9B271A6161 /* Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift"; sourceTree = "<group>"; };
+		37CB9695DEE7334D88F50887 /* Applications/Handshake-iOS/DesignSystem/StatusPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/StatusPillView.swift"; sourceTree = "<group>"; };
+		3FBC228AF171A662ED801C97 /* Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift"; sourceTree = "<group>"; };
+		43EE1DC8E34F6BCA25260EC2 /* Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift"; sourceTree = "<group>"; };
+		4DE3AAEAC769D52A7B8A176D /* Applications/Handshake-macOS/DesignSystem/MacTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/DesignSystem/MacTheme.swift"; sourceTree = "<group>"; };
+		4E8833161D6770E5C56B882E /* Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift"; sourceTree = "<group>"; };
+		59A0E3377AC7E64791B88CCC /* Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift"; sourceTree = "<group>"; };
+		632B738E65B6B73612DE0F51 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift"; sourceTree = "<group>"; };
+		69080528823D56DBD4CE70A0 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift"; sourceTree = "<group>"; };
+		6E6FD493987AD46F11421D61 /* Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift"; sourceTree = "<group>"; };
+		81AD80EC33C860F22C1853B9 /* Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift"; sourceTree = "<group>"; };
+		83EE21ACC80B60EAA570DDF0 /* Applications/Handshake-macOS/App/HandshakeMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/App/HandshakeMacApp.swift"; sourceTree = "<group>"; };
+		8F8E4D1A97BD91A16D200D3C /* Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift"; sourceTree = "<group>"; };
+		8FC4C1BF7C2A23EF38FE5D2F /* Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift"; sourceTree = "<group>"; };
+		D1F48EDBE818D2B224CADFF8 /* Applications/Handshake-macOS/DesignSystem/MacCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/DesignSystem/MacCard.swift"; sourceTree = "<group>"; };
 		D641E469EF756FDF2D13619C /* Handshake-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D947704831C92065C6E978CA /* Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift"; sourceTree = "<group>"; };
+		EC0D2FFDD0C8C2DCD93A018E /* Applications/Handshake-iOS/App/HandshakeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/App/HandshakeApp.swift"; sourceTree = "<group>"; };
+		EF079666B2FDC95C01A3DA99 /* Handshake-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,48 +72,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		8DF547AD75BFFD09655F8266 = {
-			isa = PBXGroup;
-			children = (
-				B645E63E3DBCCD2C6391EF85 /* Handshake-iOS */,
-				F76885423280E60D270A82E2 /* Handshake-macOS */,
-				192043EC6F0337C818215876 /* Products */,
-				5949DE4028B52608FBDF409D /* Frameworks */,
-			);
-			sourceTree = "<group>";
-		};
-		B645E63E3DBCCD2C6391EF85 /* Handshake-iOS */ = {
-			isa = PBXGroup;
-			children = (
-				8F8E4D1A97BD91A16D200D3C /* HandshakeActionButton.swift */,
-				2B33F6829AD8AE9B271A6161 /* HandshakeCard.swift */,
-				4E8833161D6770E5C56B882E /* HandshakeTheme.swift */,
-				6E6FD493987AD46F11421D61 /* SecurityShieldBadge.swift */,
-				37CB9695DEE7334D88F50887 /* StatusPillView.swift */,
-				EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */,
-				19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */,
-				81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */,
-				D947704831C92065C6E978CA /* DashboardViewModel.swift */,
-				8FC4C1BF7C2A23EF38FE5D2F /* iPhoneDashboardView.swift */,
-			);
-			name = "Handshake-iOS";
-			sourceTree = "<group>";
-		};
-		F76885423280E60D270A82E2 /* Handshake-macOS */ = {
-			isa = PBXGroup;
-			children = (
-				D1F48EDBE818D2B224CADFF8 /* MacCard.swift */,
-				4DE3AAEAC769D52A7B8A176D /* MacTheme.swift */,
-				83EE21ACC80B60EAA570DDF0 /* HandshakeMacApp.swift */,
-				59A0E3377AC7E64791B88CCC /* MacPairingView.swift */,
-				3FBC228AF171A662ED801C97 /* TrustManagementView.swift */,
-				43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */,
-				69080528823D56DBD4CE70A0 /* MacDashboardView.swift */,
-				632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */,
-			);
-			name = "Handshake-macOS";
-			sourceTree = "<group>";
-		};
 		192043EC6F0337C818215876 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -130,29 +88,51 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		8DF547AD75BFFD09655F8266 = {
+			isa = PBXGroup;
+			children = (
+				B645E63E3DBCCD2C6391EF85 /* Handshake-iOS */,
+				F76885423280E60D270A82E2 /* Handshake-macOS */,
+				192043EC6F0337C818215876 /* Products */,
+				5949DE4028B52608FBDF409D /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		B645E63E3DBCCD2C6391EF85 /* Handshake-iOS */ = {
+			isa = PBXGroup;
+			children = (
+				8F8E4D1A97BD91A16D200D3C /* Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift */,
+				2B33F6829AD8AE9B271A6161 /* Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift */,
+				4E8833161D6770E5C56B882E /* Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift */,
+				6E6FD493987AD46F11421D61 /* Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift */,
+				37CB9695DEE7334D88F50887 /* Applications/Handshake-iOS/DesignSystem/StatusPillView.swift */,
+				EC0D2FFDD0C8C2DCD93A018E /* Applications/Handshake-iOS/App/HandshakeApp.swift */,
+				19B1FC244756EA8EA650EE8C /* Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift */,
+				81AD80EC33C860F22C1853B9 /* Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift */,
+				D947704831C92065C6E978CA /* Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift */,
+				8FC4C1BF7C2A23EF38FE5D2F /* Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift */,
+			);
+			name = "Handshake-iOS";
+			sourceTree = "<group>";
+		};
+		F76885423280E60D270A82E2 /* Handshake-macOS */ = {
+			isa = PBXGroup;
+			children = (
+				D1F48EDBE818D2B224CADFF8 /* Applications/Handshake-macOS/DesignSystem/MacCard.swift */,
+				4DE3AAEAC769D52A7B8A176D /* Applications/Handshake-macOS/DesignSystem/MacTheme.swift */,
+				83EE21ACC80B60EAA570DDF0 /* Applications/Handshake-macOS/App/HandshakeMacApp.swift */,
+				59A0E3377AC7E64791B88CCC /* Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift */,
+				3FBC228AF171A662ED801C97 /* Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift */,
+				43EE1DC8E34F6BCA25260EC2 /* Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift */,
+				69080528823D56DBD4CE70A0 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift */,
+				632B738E65B6B73612DE0F51 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift */,
+			);
+			name = "Handshake-macOS";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D8C49ACFAC9A52B41768650D /* Handshake-iOS */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 260C37D73331120C32D603C9 /* Build configuration list for PBXNativeTarget "Handshake-iOS" */;
-			buildPhases = (
-				05E1FE947F2D7D105A145C99 /* Sources */,
-				3D274423C6661DCDE82F93D8 /* Frameworks */,
-				A019ADA6FDC0797486B67BBD /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "Handshake-iOS";
-			packageProductDependencies = (
-				4AB27CCD7AC08D3CAB94D392 /* HandshakeCore */,
-			);
-			productName = "Handshake-iOS";
-			productReference = EF079666B2FDC95C01A3DA99 /* Handshake-iOS.app */;
-			productType = "com.apple.product-type.application";
-		};
 		772EBEE13300E79EFF685E2F /* Handshake-macOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D01249EE87279BDB7F116DF8 /* Build configuration list for PBXNativeTarget "Handshake-macOS" */;
@@ -173,6 +153,26 @@
 			productReference = D641E469EF756FDF2D13619C /* Handshake-macOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D8C49ACFAC9A52B41768650D /* Handshake-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 260C37D73331120C32D603C9 /* Build configuration list for PBXNativeTarget "Handshake-iOS" */;
+			buildPhases = (
+				05E1FE947F2D7D105A145C99 /* Sources */,
+				3D274423C6661DCDE82F93D8 /* Frameworks */,
+				A019ADA6FDC0797486B67BBD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Handshake-iOS";
+			packageProductDependencies = (
+				4AB27CCD7AC08D3CAB94D392 /* HandshakeCore */,
+			);
+			productName = "Handshake-iOS";
+			productReference = EF079666B2FDC95C01A3DA99 /* Handshake-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -183,11 +183,13 @@
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
-					D8C49ACFAC9A52B41768650D = {
-						CreatedOnToolsVersion = 16.0;
-					};
 					772EBEE13300E79EFF685E2F = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					D8C49ACFAC9A52B41768650D = {
+						CreatedOnToolsVersion = 16.0;
+						DevelopmentTeam = DW8DPY9ALB;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -201,7 +203,7 @@
 			);
 			mainGroup = 8DF547AD75BFFD09655F8266;
 			packageReferences = (
-				BD0A75DA94B2506DFCF75BBB /* HandshakeCore */,
+				BD0A75DA94B2506DFCF75BBB /* XCLocalSwiftPackageReference "Packages/HandshakeCore" */,
 			);
 			productRefGroup = 192043EC6F0337C818215876 /* Products */;
 			projectDirPath = "";
@@ -214,14 +216,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A019ADA6FDC0797486B67BBD /* Resources */ = {
+		523D42B48A807169D74EAE37 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		523D42B48A807169D74EAE37 /* Resources */ = {
+		A019ADA6FDC0797486B67BBD /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -235,16 +237,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FA0CE12FD07FD020355CF7B1 /* HandshakeActionButton.swift in Sources */,
-				7B33D650542E725410CCC142 /* HandshakeCard.swift in Sources */,
-				7733E9832671AC60A51A9DE7 /* HandshakeTheme.swift in Sources */,
-				C3FF92E98E3A65F694D0DCA6 /* SecurityShieldBadge.swift in Sources */,
-				10F06B36E1D98255BE18C7B8 /* StatusPillView.swift in Sources */,
-				091244B5669E5DEED53FEA7D /* HandshakeApp.swift in Sources */,
-				D72B7B80AA0383CC61324E1A /* PairingScannerView.swift in Sources */,
-				718E07E3F2CD92240596D5EF /* SecurityAuditView.swift in Sources */,
-				BD9E5A8839388E598F70C767 /* DashboardViewModel.swift in Sources */,
-				EA08B9B12B902841058E1345 /* iPhoneDashboardView.swift in Sources */,
+				FA0CE12FD07FD020355CF7B1 /* Applications/Handshake-iOS/DesignSystem/HandshakeActionButton.swift in Sources */,
+				7B33D650542E725410CCC142 /* Applications/Handshake-iOS/DesignSystem/HandshakeCard.swift in Sources */,
+				7733E9832671AC60A51A9DE7 /* Applications/Handshake-iOS/DesignSystem/HandshakeTheme.swift in Sources */,
+				C3FF92E98E3A65F694D0DCA6 /* Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift in Sources */,
+				10F06B36E1D98255BE18C7B8 /* Applications/Handshake-iOS/DesignSystem/StatusPillView.swift in Sources */,
+				091244B5669E5DEED53FEA7D /* Applications/Handshake-iOS/App/HandshakeApp.swift in Sources */,
+				D72B7B80AA0383CC61324E1A /* Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift in Sources */,
+				718E07E3F2CD92240596D5EF /* Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift in Sources */,
+				BD9E5A8839388E598F70C767 /* Applications/Handshake-iOS/Features/Dashboard/DashboardViewModel.swift in Sources */,
+				EA08B9B12B902841058E1345 /* Applications/Handshake-iOS/Features/Dashboard/iPhoneDashboardView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,40 +254,74 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				318D11E2E3717147242D0BF9 /* MacCard.swift in Sources */,
-				CA0DBC0AF03567B18EFE0079 /* MacTheme.swift in Sources */,
-				579B3C81559C3D9D125CA532 /* HandshakeMacApp.swift in Sources */,
-				B1896057177EFEFBAE61C268 /* MacPairingView.swift in Sources */,
-				E7D0871234DF412B4C34DE96 /* TrustManagementView.swift in Sources */,
-				4567C02B818A563728483958 /* MenuBarView.swift in Sources */,
-				4146766024FE0C87784004E4 /* MacDashboardView.swift in Sources */,
-				056FE67800AC3D295D3073A1 /* MacDashboardViewModel.swift in Sources */,
+				318D11E2E3717147242D0BF9 /* Applications/Handshake-macOS/DesignSystem/MacCard.swift in Sources */,
+				CA0DBC0AF03567B18EFE0079 /* Applications/Handshake-macOS/DesignSystem/MacTheme.swift in Sources */,
+				579B3C81559C3D9D125CA532 /* Applications/Handshake-macOS/App/HandshakeMacApp.swift in Sources */,
+				B1896057177EFEFBAE61C268 /* Applications/Handshake-macOS/Features/Pairing/MacPairingView.swift in Sources */,
+				E7D0871234DF412B4C34DE96 /* Applications/Handshake-macOS/Features/TrustManagement/TrustManagementView.swift in Sources */,
+				4567C02B818A563728483958 /* Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift in Sources */,
+				4146766024FE0C87784004E4 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift in Sources */,
+				056FE67800AC3D295D3073A1 /* Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		BD0A75DA94B2506DFCF75BBB /* HandshakeCore */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/HandshakeCore;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		4AB27CCD7AC08D3CAB94D392 /* HandshakeCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = BD0A75DA94B2506DFCF75BBB /* HandshakeCore */;
-			productName = HandshakeCore;
-		};
-		B4BA0DB3B16A20A18C288F7F /* HandshakeCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = BD0A75DA94B2506DFCF75BBB /* HandshakeCore */;
-			productName = HandshakeCore;
-		};
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin XCBuildConfiguration section */
+		224CBE34E1B2E15885C51F66 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Applications/Handshake-macOS/Resources/Handshake-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Applications/Handshake-macOS/Resources/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shrihaan.handshake.mac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		29C8CF94EE8726D54FC06E0E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DW8DPY9ALB;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Applications/Handshake-iOS/Resources/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shrihaan.handshake.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		30ED5595C35C454BDBB899DA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -319,86 +355,6 @@
 			};
 			name = Debug;
 		};
-		CDE371A4DBACD8056DC19FC4 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDEFINED_VARIABLES = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				SWIFT_COMPILATION_MODE = "wholemodule";
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-			};
-			name = Release;
-		};
-		BFF872EB2B0C28D9222BD41D /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "";
-				CODE_SIGNING_ALLOWED = NO;
-				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Applications/Handshake-iOS/Resources/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.shrihaan.handshake.ios;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		29C8CF94EE8726D54FC06E0E /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "";
-				CODE_SIGNING_ALLOWED = NO;
-				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Applications/Handshake-iOS/Resources/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.shrihaan.handshake.ios;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 		594588BD3E8EC7F8788656F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -425,44 +381,63 @@
 			};
 			name = Debug;
 		};
-		224CBE34E1B2E15885C51F66 /* Release */ = {
+		BFF872EB2B0C28D9222BD41D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Applications/Handshake-macOS/Resources/Handshake-macOS.entitlements";
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DW8DPY9ALB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Applications/Handshake-macOS/Resources/Info.plist";
+				INFOPLIST_FILE = "Applications/Handshake-iOS/Resources/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/../Frameworks",
+					"@executable_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.shrihaan.handshake.mac;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shrihaan.handshake.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CDE371A4DBACD8056DC19FC4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		E1986EE941208BFFECA1DD63 /* Build configuration list for PBXProject "Handshake" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				30ED5595C35C454BDBB899DA /* Debug */,
-				CDE371A4DBACD8056DC19FC4 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		260C37D73331120C32D603C9 /* Build configuration list for PBXNativeTarget "Handshake-iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -481,7 +456,36 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		E1986EE941208BFFECA1DD63 /* Build configuration list for PBXProject "Handshake" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				30ED5595C35C454BDBB899DA /* Debug */,
+				CDE371A4DBACD8056DC19FC4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BD0A75DA94B2506DFCF75BBB /* XCLocalSwiftPackageReference "Packages/HandshakeCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HandshakeCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4AB27CCD7AC08D3CAB94D392 /* HandshakeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BD0A75DA94B2506DFCF75BBB /* XCLocalSwiftPackageReference "Packages/HandshakeCore" */;
+			productName = HandshakeCore;
+		};
+		B4BA0DB3B16A20A18C288F7F /* HandshakeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BD0A75DA94B2506DFCF75BBB /* XCLocalSwiftPackageReference "Packages/HandshakeCore" */;
+			productName = HandshakeCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C7DFDB8C9D40A88E2348C23D /* Project object */;
 }
