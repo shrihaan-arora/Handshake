@@ -100,7 +100,7 @@ public final class QRScannerViewController: UIViewController, AVCaptureMetadataO
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         sessionQueue.async { [weak self] in
-            guard let self = self, !self.captureSession.isRunning else { return }
+            guard let self = self, self.hasConfiguredSession, !self.captureSession.isRunning else { return }
             self.captureSession.startRunning()
         }
     }
@@ -113,19 +113,32 @@ public final class QRScannerViewController: UIViewController, AVCaptureMetadataO
         }
     }
 
+    deinit {
+        let session = captureSession
+        sessionQueue.async {
+            if session.isRunning {
+                session.stopRunning()
+            }
+        }
+    }
+
     private func configureSession() {
         guard !hasConfiguredSession else { return }
+        guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
+            DispatchQueue.main.async { [weak self] in
+                self?.delegate?.qrScannerDidFail(error: "Camera access is not authorized.")
+            }
+            return
+        }
 
         captureSession.beginConfiguration()
-        defer {
-            captureSession.commitConfiguration()
-        }
 
         // 1. Discover physical back camera
         let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
             ?? AVCaptureDevice.default(for: .video)
 
         guard let camera = device else {
+            captureSession.commitConfiguration()
             DispatchQueue.main.async { [weak self] in
                 self?.delegate?.qrScannerDidFail(error: "No physical camera available on this device.")
             }
@@ -139,12 +152,14 @@ public final class QRScannerViewController: UIViewController, AVCaptureMetadataO
             if captureSession.canAddInput(input) {
                 captureSession.addInput(input)
             } else {
+                captureSession.commitConfiguration()
                 DispatchQueue.main.async { [weak self] in
                     self?.delegate?.qrScannerDidFail(error: "Unable to add camera input to capture session.")
                 }
                 return
             }
         } catch {
+            captureSession.commitConfiguration()
             DispatchQueue.main.async { [weak self] in
                 self?.delegate?.qrScannerDidFail(error: "Camera configuration error: \(error.localizedDescription)")
             }
@@ -159,20 +174,27 @@ public final class QRScannerViewController: UIViewController, AVCaptureMetadataO
             if metadataOutput.availableMetadataObjectTypes.contains(.qr) {
                 metadataOutput.metadataObjectTypes = [.qr]
             } else {
+                captureSession.commitConfiguration()
                 DispatchQueue.main.async { [weak self] in
                     self?.delegate?.qrScannerDidFail(error: "QR code detection not supported by hardware.")
                 }
                 return
             }
         } else {
+            captureSession.commitConfiguration()
             DispatchQueue.main.async { [weak self] in
                 self?.delegate?.qrScannerDidFail(error: "Unable to add metadata output to capture session.")
             }
             return
         }
 
+        // Commit configuration BEFORE starting session
+        captureSession.commitConfiguration()
         hasConfiguredSession = true
-        captureSession.startRunning()
+
+        if !captureSession.isRunning {
+            captureSession.startRunning()
+        }
     }
 
     private func updateVideoOrientation() {
