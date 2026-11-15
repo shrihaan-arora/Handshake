@@ -3,11 +3,10 @@ import HandshakeCore
 
 public struct MenuBarView: View {
     @ObservedObject public var viewModel: MacDashboardViewModel
-    public let openMainWindow: () -> Void
+    @Environment(\.openWindow) private var openWindow
 
-    public init(viewModel: MacDashboardViewModel, openMainWindow: @escaping () -> Void) {
+    public init(viewModel: MacDashboardViewModel, openMainWindow: @escaping () -> Void = {}) {
         self.viewModel = viewModel
-        self.openMainWindow = openMainWindow
     }
 
     public var body: some View {
@@ -49,7 +48,9 @@ public struct MenuBarView: View {
             // Quick Actions
             Button {
                 viewModel.startPairingFlow()
-                openMainWindow()
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openWindow(id: "main-dashboard")
+                bringMainWindowToFront()
             } label: {
                 Label("Pair New Device...", systemImage: "qrcode")
             }
@@ -66,7 +67,9 @@ public struct MenuBarView: View {
             .padding(.vertical, 4)
 
             Button {
-                openMainWindow()
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openWindow(id: "main-dashboard")
+                bringMainWindowToFront()
             } label: {
                 Label("Open Handshake Window", systemImage: "macwindow")
             }
@@ -85,6 +88,14 @@ public struct MenuBarView: View {
         }
         .padding(.vertical, 4)
         .frame(width: 260)
+    }
+
+    private func bringMainWindowToFront() {
+        for window in NSApplication.shared.windows {
+            if window.title == "Handshake" || window.canBecomeKey {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
     }
 }
 
