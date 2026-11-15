@@ -66,6 +66,10 @@ public struct PairingScannerView: View {
             .onAppear {
                 permissionManager.refreshStatus()
             }
+            .onDisappear {
+                isTorchOn = false
+                isScanningActive = false
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 permissionManager.refreshStatus()
             }
@@ -207,6 +211,7 @@ public struct PairingScannerView: View {
                         onCodeScanned: handleScannedCode,
                         onError: handleScannerError
                     )
+                    .frame(maxWidth: .infinity)
                     .frame(height: 340)
                     .clipped()
 

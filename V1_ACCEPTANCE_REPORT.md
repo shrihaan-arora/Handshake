@@ -19,7 +19,7 @@ Handshake V1 has completed its comprehensive real-world validation and security 
 3. **Mutual Bilateral QR Pairing**: Ephemeral P-256 ECDH key exchange with canonical transcript binding, bilateral digital signatures, single-use invitation expiry, and independent 6-digit Short Authentication String (SAS) derivation.
 4. **Local Network Transport**: Local Bonjour `_handshake._tcp` (port 5894) with 4-byte framed AES-256-GCM AEAD encryption and P-256 ECDSA signatures. Correctly and honestly documented as **Application-Level AEAD over Raw TCP**, not TLS.
 5. **Strict Application Lifecycle**: Foreground-only on iPhone (`Info.plist` has zero background modes); window-bound on macOS (listener active strictly while companion window is open). Zero persistent background daemons, zero `LaunchAgents`, zero `LaunchDaemons`, zero login items, zero cloud telemetry.
-6. **Physical Hardware Audit**: Host MacBook Air (Apple M4, macOS 27.0) verified with live immediate screen lock and IOKit sleep support. Physical iPhone 16e (`00008140-00042C3902F2801C`) compiled cleanly for `arm64-apple-ios`; physical installation blocked strictly by expired Apple Development provisioning profile (`0xe800801c`), honestly classified and documented.
+6. **Physical Hardware Audit**: Host MacBook Air (Apple M4, macOS 27.0) verified with live immediate screen lock and IOKit sleep support. Physical iPhone 16e (`00008140-00042C3902F2801C`) code-signed via Personal Team, installed via `xcrun devicectl`, and verified live (PID 20914). Camera permissions and live AVFoundation QR code video preview verified on physical hardware.
 
 ---
 
@@ -44,7 +44,7 @@ Handshake V1 has completed its comprehensive real-world validation and security 
 | **15** | No unnecessary battery-intensive scanning | Bounded timeouts, resource deallocation | **VERIFIED** | Bonjour and BLE scanning strictly bounded to 3.5s–4.0s timeouts. Sockets, connections, and managers are deallocated immediately upon command completion. |
 | **16** | All tests and both native builds pass | `scripts/verify.sh` continuous verification | **VERIFIED** | 85 unit and benchmark tests pass in 1.459s with 0 failures; dual-target Xcode builds succeed cleanly. Zero external dependencies. |
 | **17** | Documentation reflects actual implemented capabilities | Continuous documentation synchronization | **VERIFIED** | `V1_REAL_WORLD_VALIDATION.md`, `LOCK_SCREEN_SECURITY.md`, `CRYPTOGRAPHIC_REVIEW.md`, `NETWORK_SECURITY_REVIEW.md`, `DEVICE_TEST_MATRIX.md` match codebase state. |
-| **18** | Outstanding limitations are disclosed | Documented hardware boundaries & signing status | **VERIFIED** | Hardware Secure Enclave availability vs software fallback on simulator, TCC Automation permission requirement, and expired personal provisioning profile fully disclosed. |
+| **18** | Outstanding limitations are disclosed | Documented hardware boundaries & physical verification | **VERIFIED** | Hardware Secure Enclave availability vs software fallback on simulator, TCC Automation permission requirement, and physical device deployment via personal team profile fully disclosed and documented. |
 
 ---
 
