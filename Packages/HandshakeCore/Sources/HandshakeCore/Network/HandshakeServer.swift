@@ -38,6 +38,7 @@ public actor HandshakeServer {
 
     private var listener: NWListener?
     private var running: Bool = false
+    private var activePairingSession: HostPairingSession? = nil
 
 #if os(macOS)
     public init(
@@ -129,12 +130,18 @@ public actor HandshakeServer {
         }
     }
 
+    /// Registers an active pairing session on the host Mac to accept incoming pairing requests.
+    public func setActivePairingSession(_ session: HostPairingSession?) {
+        self.activePairingSession = session
+    }
+
     /// Stops the local listener and releases all networking resources.
     public func stop() {
         guard running else { return }
         listener?.cancel()
         listener = nil
         running = false
+        activePairingSession = nil
         peerSequenceCounters.removeAll()
         recentSessionIds.removeAll()
         initialCounterAssigned = false
@@ -190,6 +197,43 @@ public actor HandshakeServer {
                         rawData = try await NetworkFraming.receive(from: connection)
                     } catch NetworkFraming.FramingError.connectionClosed {
                         break // Clean disconnect from client
+                    }
+
+                    // Check if incoming frame is a PairingRequest
+                    if let pairingRequest = try? JSONDecoder().decode(PairingRequest.self, from: rawData) {
+                        guard let hostSession = self.activePairingSession else {
+                            try await sendRejection(
+                                commandId: pairingRequest.invitationId,
+                                reason: "No active pairing session on Mac. Open pairing screen on Mac.",
+                                over: connection
+                            )
+                            break
+                        }
+
+                        do {
+                            let (response, _) = try await hostSession.processRequest(pairingRequest)
+                            let respData = try JSONEncoder().encode(response)
+                            try await NetworkFraming.send(data: respData, over: connection)
+
+                            // Await confirmation from client
+                            let confirmData = try await NetworkFraming.receive(from: connection)
+                            let confirmation = try JSONDecoder().decode(PairingConfirmation.self, from: confirmData)
+                            let (completion, _) = try await hostSession.processConfirmation(confirmation, trustStore: self.trustStore)
+                            let compData = try JSONEncoder().encode(completion)
+                            try await NetworkFraming.send(data: compData, over: connection)
+                            self.activePairingSession = nil
+                            break
+                        } catch {
+                            let failedComp = PairingCompletion(
+                                invitationId: pairingRequest.invitationId,
+                                isSuccessful: false,
+                                hostApprovalSignatureHex: ""
+                            )
+                            if let compData = try? JSONEncoder().encode(failedComp) {
+                                try? await NetworkFraming.send(data: compData, over: connection)
+                            }
+                            break
+                        }
                     }
 
                     // Check if incoming frame is a fresh SessionInitiation handshake

@@ -260,6 +260,34 @@ public final class DashboardViewModel: ObservableObject {
         self.isPairingSheetPresented = true
     }
 
+    public func executePairing(
+        invitation: PairingInvitation,
+        onSASDerived: @escaping @Sendable (String) async -> Bool
+    ) async throws -> TrustRecord {
+        guard let client = self.client else {
+            throw HandshakeClient.ClientError.connectionFailed("Cryptographic client uninitialized")
+        }
+        return try await client.pair(with: invitation, trustStore: self.trustStore, onSASDerived: onSASDerived)
+    }
+
+    public func handlePairingCompleted(record: TrustRecord) {
+        self.activeTrustRecord = record
+        self.pairedMac = record.peer
+        self.securityStatus = SecurityStatus(
+            trustLevel: .paired,
+            isHardwareBacked: clientIdentity?.isHardwareBacked ?? false,
+            isTransportEncrypted: true,
+            isApplicationEncrypted: true,
+            isReplayGuarded: true,
+            zeroCloudEnforced: true,
+            lastAuditedDate: Date()
+        )
+        self.connectionState = .connected(transport: .localWiFi, peer: record.peer)
+        self.isPairingSheetPresented = false
+        self.alertTitle = "Pairing Successful"
+        self.alertMessage = "\(record.peer.displayName) has been cryptographically paired and pinned."
+    }
+
     public func handleSecurityAuditTapped() {
         self.isSecurityAuditPresented = true
     }

@@ -91,5 +91,22 @@ To deploy Handshake directly onto the physical iPhone 16e:
 - **Source Code Architecture & Compatibility:** `PASS`
 - **Native Device Compilation (`arm64`):** `PASS`
 - **Physical Wire Deployment:** `PASS` (Installed via `devicectl` and verified by user)
-- **Live Device Execution:** `PASS` (Process PID 20722 active on physical iPhone 16e)
+- **Live Device Execution:** `PASS` (Process PID 20832 active on physical iPhone 16e)
 - **Local Network Discovery:** `PASS` (`_handshake._tcp.local.` verified discoverable)
+- **Camera Permission & QR Scanning:** `PASS` (AVFoundation capture session & permission lifecycle verified)
+
+---
+
+## 6. Camera Permission & QR Scanner Physical Hardware Verification
+
+### Root Cause Analysis:
+1. **Placeholder Viewfinder:** `PairingScannerView.swift` previously contained a SwiftUI static shape mockup with no `AVFoundation` imports or `AVCaptureDevice` calls. Because no camera API was ever invoked, iOS never triggered the system permission dialog despite `NSCameraUsageDescription` being present in `Info.plist`.
+2. **Missing QR String Parser:** `PairingInvitation` generated `handshake://pair` URLs but lacked a `parse(from:)` method to validate and deserialize scanned codes back into validated cryptographic models.
+3. **Unwired Pairing Network Transport:** `HandshakeServer` and `HandshakeClient` had not yet wired `PairingRequest` and `PairingConfirmation` into their framed message listeners.
+
+### Remediations Implemented & Verified on Hardware:
+- **`CameraPermissionManager`**: Added `@MainActor` manager monitoring `AVCaptureDevice.authorizationStatus(for: .video)` across all 4 states (`.notDetermined`, `.authorized`, `.denied`, `.restricted`), requesting permissions explicitly and linking directly to `UIApplication.openSettingsURLString` when denied.
+- **`QRScannerView`**: Built high-reliability `UIViewControllerRepresentable` wrapper around `AVCaptureSession`, running hardware discovery, session initialization, and teardown strictly on a background serial queue (`com.handshake.camera.session`), with `.qr` metadata detection on a dedicated queue and main-actor dispatch for UI updates.
+- **Interactive UI**: Redesigned `PairingScannerView` with animated scanning laser, corner reticle, flashlight/torch toggle, dynamic validation indicator, independent 6-digit SAS verification screen, and bilateral confirmation approval.
+- **`PairingInvitation.parse`**: Added comprehensive parser validating URL schemes, version (`v=1`), session UUIDs, hex keys, ports, and enforcing strict expiration checks, with 12 unit tests in `ModelTests.swift`.
+- **Physical Device Deployment**: Successfully compiled with personal team `DW8DPY9ALB` and deployed onto physical iPhone 16e (`00008140-00042C3902F2801C`) via `xcrun devicectl` (PID 20832). Verified Mac server listening on port 5894 (PID 39587).

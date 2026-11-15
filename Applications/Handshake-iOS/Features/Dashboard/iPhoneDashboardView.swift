@@ -180,7 +180,7 @@ public struct iPhoneDashboardView: View {
                 .padding(.top, HandshakeTheme.Spacing.sm)
             }
             .sheet(isPresented: $viewModel.isPairingSheetPresented) {
-                PairingScannerView()
+                PairingScannerView(viewModel: viewModel)
             }
             .sheet(isPresented: $viewModel.isSecurityAuditPresented) {
                 SecurityAuditView(status: viewModel.securityStatus)

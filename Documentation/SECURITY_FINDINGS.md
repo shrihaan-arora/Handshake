@@ -18,6 +18,7 @@
 | **SEC-05** | Screen Saver Lock Grace Period Password Bypass | High | CWE-305 | **RESOLVED** | `MacLockEngine.swift` |
 | **SEC-06** | Secret Key Leakage via Debug String Interpolation | Medium | CWE-532 | **RESOLVED** | `TrustRecord.description` |
 | **SEC-07** | Replay Window Boundary Integer Wrap | Medium | CWE-190 | **RESOLVED** | `SequenceCounter.swift` |
+| **SEC-08** | Missing Camera Authorization & Placeholder QR Viewfinder | Medium | CWE-276 | **RESOLVED** | `CameraPermissionManager.swift` & `QRScannerView.swift` |
 
 ---
 
@@ -56,6 +57,13 @@
 ### SEC-07: Replay Window Boundary Integer Wrap
 - **Description:** Under large sequence jumps, sliding window boundary arithmetic risked underflow or incorrect acceptance of ancient sequence numbers.
 - **Remediation:** Added clamped boundary checks and comprehensive boundary unit tests (`SecurityBoundaryTests.swift`). Sequence jumps $> 1,000$ packets are safely rejected or trigger session renegotiation.
+
+### SEC-08: Missing Camera Authorization & Placeholder QR Viewfinder
+- **Description:** `PairingScannerView.swift` contained a placeholder UI mockup with static shapes and no `AVFoundation` imports or `AVCaptureDevice` authorization checks. As a result, the physical iPhone never presented the iOS camera permission request dialog, the camera hardware was never initialized, and QR codes displayed on the Mac companion could not be read. Additionally, `PairingInvitation` lacked a `parse(from:)` deserializer to validate URL schemes, protocol versions, expirations, and cryptographic key formats from scanned QR payloads.
+- **Remediation:** 
+  1. Implemented `CameraPermissionManager` covering all four `AVAuthorizationStatus` states (`.notDetermined`, `.authorized`, `.denied`, `.restricted`), requesting access explicitly via `AVCaptureDevice.requestAccess(for: .video)`, and providing graceful fallback with a direct link to iOS Settings (`UIApplication.openSettingsURLString`).
+  2. Implemented `QRScannerView` with `AVCaptureSession` configured strictly on a background serial queue, physical back-camera discovery, `.qr` metadata detection, haptic feedback, and torch toggle.
+  3. Implemented `PairingInvitation.parse(from:currentDate:)` supporting URL scheme (`handshake://pair`) and JSON formats, verifying protocol version (`v=1`), session UUIDs, non-empty hex keys, valid ports, and rejecting expired invitations. Verified with 12 unit tests in `ModelTests.swift`.
 
 ---
 

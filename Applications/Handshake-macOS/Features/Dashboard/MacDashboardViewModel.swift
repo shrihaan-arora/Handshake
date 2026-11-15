@@ -17,6 +17,7 @@ public final class MacDashboardViewModel: ObservableObject {
     private var hostIdentity: CryptoIdentity?
     private let trustStore: TrustStore
     private var server: HandshakeServer?
+    private var activeHostPairingSession: HostPairingSession? = nil
     private let lockEngine = MacLockEngine()
     private let sleepEngine = MacSleepEngine()
 
@@ -183,18 +184,19 @@ public final class MacDashboardViewModel: ObservableObject {
     // MARK: - Pairing & Trust
 
     public func startPairingFlow() {
-        guard let hostMac = hostIdentity?.identity else { return }
+        guard let host = hostIdentity else { return }
 
-        let ephemeralKey = EphemeralKeyExchange()
-        let ephemeralPublicHex = ephemeralKey.publicKeyHex
-        let code = String(format: "%06d", Int.random(in: 100_000...999_999))
-
-        self.activeInvitation = PairingInvitation(
-            hostIdentity: hostMac,
-            ephemeralPublicKeyHex: ephemeralPublicHex,
+        let hostSession = HostPairingSession(
+            hostIdentity: host,
             lifetimeSeconds: 120,
-            verificationCode: code
+            localPort: 5894,
+            serviceName: "Handshake-Host"
         )
+        self.activeHostPairingSession = hostSession
+        self.activeInvitation = hostSession.invitation
+        Task {
+            await self.server?.setActivePairingSession(hostSession)
+        }
         self.isPairingSheetPresented = true
         recentAuditEvents.insert("Single-use pairing invitation generated (expires in 120s)", at: 0)
     }

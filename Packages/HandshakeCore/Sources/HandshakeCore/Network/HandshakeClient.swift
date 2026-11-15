@@ -141,6 +141,111 @@ public final class HandshakeClient: Sendable {
         return endpoint
     }
 
+    // MARK: - Mutual Pairing Protocol
+
+    /// Executes bilateral pairing protocol with a host Mac following a scanned QR invitation.
+    /// Connects over local network, exchanges ephemeral keys, derives SAS, awaits approval,
+    /// and establishes a pinned TrustRecord in the provided TrustStore.
+    public func pair(
+        with invitation: PairingInvitation,
+        trustStore: TrustStore,
+        onSASDerived: @escaping @Sendable (String) async -> Bool
+    ) async throws -> TrustRecord {
+        guard !invitation.isExpired() else {
+            throw PairingError.invitationExpired
+        }
+
+        // 1. Discover host Mac via Bonjour
+        let (endpoint, _) = try await discoverMac(
+            serviceType: "_handshake._tcp",
+            targetPeer: invitation.hostIdentity,
+            timeoutSeconds: 4.0
+        )
+
+        // 2. Establish local TCP connection
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.enableKeepalive = false
+        let params = NWParameters(tls: nil, tcp: tcpOptions)
+        let connection = NWConnection(to: endpoint, using: params)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let queue = DispatchQueue(label: "com.handshake.client.pairing", qos: .userInitiated)
+            let resumeState = ResumeLock()
+
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    Task {
+                        do {
+                            // 3. Initialize ClientPairingSession
+                            let clientSession = try ClientPairingSession(
+                                invitation: invitation,
+                                clientIdentity: self.clientIdentity
+                            )
+
+                            // 4. Send PairingRequest
+                            let request = await clientSession.createRequest()
+                            let reqData = try JSONEncoder().encode(request)
+                            try await NetworkFraming.send(data: reqData, over: connection)
+
+                            // 5. Receive PairingResponse
+                            let respBytes = try await NetworkFraming.receive(from: connection)
+                            let response = try JSONDecoder().decode(PairingResponse.self, from: respBytes)
+
+                            // 6. Process response & derive SAS code independently
+                            let sasCode = try await clientSession.processResponse(response)
+
+                            // 7. Request user approval over derived SAS code
+                            let approved = await onSASDerived(sasCode)
+                            guard approved else {
+                                let rejectConfirm = try await clientSession.createConfirmation(isApproved: false)
+                                let rejectData = try JSONEncoder().encode(rejectConfirm)
+                                try? await NetworkFraming.send(data: rejectData, over: connection)
+                                connection.cancel()
+                                if resumeState.takeResume() {
+                                    continuation.resume(throwing: PairingError.unapproved)
+                                }
+                                return
+                            }
+
+                            // 8. Send approved PairingConfirmation
+                            let confirmation = try await clientSession.createConfirmation(isApproved: true)
+                            let confirmData = try JSONEncoder().encode(confirmation)
+                            try await NetworkFraming.send(data: confirmData, over: connection)
+
+                            // 9. Receive PairingCompletion
+                            let compBytes = try await NetworkFraming.receive(from: connection)
+                            let completion = try JSONDecoder().decode(PairingCompletion.self, from: compBytes)
+
+                            // 10. Complete pairing and pin host in TrustStore
+                            let establishedRecord = try await clientSession.completePairing(completion, trustStore: trustStore)
+
+                            connection.cancel()
+                            if resumeState.takeResume() {
+                                continuation.resume(returning: establishedRecord)
+                            }
+                        } catch {
+                            connection.cancel()
+                            if resumeState.takeResume() {
+                                continuation.resume(throwing: error)
+                            }
+                        }
+                    }
+
+                case .failed(let error):
+                    if resumeState.takeResume() {
+                        continuation.resume(throwing: ClientError.connectionFailed(error.localizedDescription))
+                    }
+
+                default:
+                    break
+                }
+            }
+
+            connection.start(queue: queue)
+        }
+    }
+
     // MARK: - Command Dispatch
 
     /// Performs mutual ephemeral P-256 ECDH session handshake over an active NWConnection.
