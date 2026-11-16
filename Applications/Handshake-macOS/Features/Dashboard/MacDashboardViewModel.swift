@@ -11,8 +11,6 @@ public final class MacDashboardViewModel: ObservableObject {
     @Published public var activeInvitation: PairingInvitation?
     @Published public var securityStatus: SecurityStatus = .unconfigured
     @Published public var recentAuditEvents: [String] = []
-    @Published public var screenLockGracePeriod: MacLockEngine.ScreenLockGracePeriod = .immediate
-    @Published public var lockConfigurationWarning: String? = nil
 
     public enum MacPairingState: Equatable {
         case idle
@@ -42,7 +40,6 @@ public final class MacDashboardViewModel: ObservableObject {
     private let trustStore: TrustStore
     private var server: HandshakeServer?
     private var activeHostPairingSession: HostPairingSession? = nil
-    private let lockEngine = MacLockEngine()
     private let sleepEngine = MacSleepEngine()
 
     private let dbManager: DatabaseManager?
@@ -112,17 +109,6 @@ public final class MacDashboardViewModel: ObservableObject {
                     lastAuditedDate: Date()
                 )
             self.recentAuditEvents.insert("Cryptographic identity initialized (\(identity.identity.publicKeyHex.prefix(12))...)", at: 0)
-
-            // Audit screen lock grace period
-            let gracePeriod = lockEngine.checkScreenLockGracePeriod()
-            self.screenLockGracePeriod = gracePeriod
-            if !gracePeriod.isSecure {
-                self.lockConfigurationWarning = "Screen lock grace period is not set to 'Immediately' (\(gracePeriod.description)). Lock commands from paired devices will be rejected to prevent an unauthenticated display. Please configure System Settings > Lock Screen > 'Require password after screen saver begins' to 'Immediately'."
-                self.recentAuditEvents.insert("Configuration Warning: Screen lock grace period is \(gracePeriod.description)", at: 0)
-            } else {
-                self.lockConfigurationWarning = nil
-                self.recentAuditEvents.insert("Screen lock policy verified: Password required immediately", at: 0)
-            }
 
             // Auto-start server if available and window is open
             if isAvailableForControl {
@@ -198,26 +184,8 @@ public final class MacDashboardViewModel: ObservableObject {
 
         switch message.command {
         case .lockScreen:
-            recentAuditEvents.insert("[\(timeStr)] Authenticated Lock received from '\(peer.displayName)' (#\(shortId))", at: 0)
-            let result = await lockEngine.lockDisplay()
-            switch result {
-            case .confirmedLocked(let passwordRequiredImmediately):
-                if passwordRequiredImmediately {
-                    recentAuditEvents.insert("[\(timeStr)] Display lock verified active (Password required immediately)", at: 0)
-                    return .executed
-                } else {
-                    recentAuditEvents.insert("[\(timeStr)] Lock rejected: Grace period is not immediate. Authentication not enforced.", at: 0)
-                    return .failed("Mac screen lock grace period is not immediate. Authentication not enforced.")
-                }
-            case .invoked:
-                recentAuditEvents.insert("[\(timeStr)] Display lock invoked via System Events", at: 0)
-                return .executed
-            case .failed(let reason):
-                recentAuditEvents.insert("[\(timeStr)] Display lock failed: \(reason)", at: 0)
-                return .failed(reason)
-            case .received, .authenticated:
-                return .received
-            }
+            recentAuditEvents.insert("[\(timeStr)] Rejected unsupported Lock command from '\(peer.displayName)' (#\(shortId))", at: 0)
+            return .rejected("Lock Screen command is unsupported in V1")
 
         case .sleep:
             recentAuditEvents.insert("[\(timeStr)] Authenticated Sleep received from '\(peer.displayName)' (#\(shortId))", at: 0)

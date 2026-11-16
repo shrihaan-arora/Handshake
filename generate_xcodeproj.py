@@ -77,6 +77,8 @@ ID_IOS_ASSETS_REF = make_id("ASSETS_REF_IOS")
 ID_IOS_ASSETS_BUILDFILE = make_id("ASSETS_BUILDFILE_IOS")
 ID_MAC_ASSETS_REF = make_id("ASSETS_REF_MAC")
 ID_MAC_ASSETS_BUILDFILE = make_id("ASSETS_BUILDFILE_MAC")
+ID_MAC_ICNS_REF = make_id("MAC_APPICON_ICNS_REF")
+ID_MAC_ICNS_BUILDFILE = make_id("MAC_APPICON_ICNS_BUILDFILE")
 
 ID_PROJECT_CONFIG_LIST = make_id("PROJECT_CONFIG_LIST")
 ID_PROJECT_CONFIG_DEBUG = make_id("PROJECT_CONFIG_DEBUG")
@@ -120,11 +122,13 @@ for f, (fileref_id, buildfile_id) in mac_file_ids.items():
 pbx_file_refs.append(f"\t\t{ID_IOS_APP_PRODUCT} /* Handshake-iOS.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = \"Handshake-iOS.app\"; sourceTree = BUILT_PRODUCTS_DIR; }};")
 pbx_file_refs.append(f"\t\t{ID_MAC_APP_PRODUCT} /* Handshake-macOS.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = \"Handshake-macOS.app\"; sourceTree = BUILT_PRODUCTS_DIR; }};")
 
-# Asset Catalogs
+# Asset Catalogs & Resources
 pbx_file_refs.append(f"\t\t{ID_IOS_ASSETS_REF} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = \"Applications/Handshake-iOS/Assets.xcassets\"; sourceTree = \"<group>\"; }};")
 pbx_file_refs.append(f"\t\t{ID_MAC_ASSETS_REF} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = \"Applications/Handshake-macOS/Assets.xcassets\"; sourceTree = \"<group>\"; }};")
+pbx_file_refs.append(f"\t\t{ID_MAC_ICNS_REF} /* AppIcon.icns */ = {{isa = PBXFileReference; lastKnownFileType = image.icns; path = \"Applications/Handshake-macOS/Resources/AppIcon.icns\"; sourceTree = \"<group>\"; }};")
 pbx_build_files.append(f"\t\t{ID_IOS_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {ID_IOS_ASSETS_REF} /* Assets.xcassets */; }};")
 pbx_build_files.append(f"\t\t{ID_MAC_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {ID_MAC_ASSETS_REF} /* Assets.xcassets */; }};")
+pbx_build_files.append(f"\t\t{ID_MAC_ICNS_BUILDFILE} /* AppIcon.icns in Resources */ = {{isa = PBXBuildFile; fileRef = {ID_MAC_ICNS_REF} /* AppIcon.icns */; }};")
 
 # Write Scheme files
 ios_scheme = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -250,6 +254,7 @@ ios_children = "\n".join(ios_children_list)
 
 mac_children_list = [f"\t\t\t\t{fileref_id} /* {os.path.basename(f)} */," for f, (fileref_id, _) in mac_file_ids.items()]
 mac_children_list.append(f"\t\t\t\t{ID_MAC_ASSETS_REF} /* Assets.xcassets */,")
+mac_children_list.append(f"\t\t\t\t{ID_MAC_ICNS_REF} /* AppIcon.icns */,")
 mac_children = "\n".join(mac_children_list)
 
 pbxproj = f"""// !$*UTF8*$!
@@ -429,6 +434,7 @@ pbxproj = f"""// !$*UTF8*$!
 			buildActionMask = 2147483647;
 			files = (
 				{ID_MAC_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */,
+				{ID_MAC_ICNS_BUILDFILE} /* AppIcon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		}};

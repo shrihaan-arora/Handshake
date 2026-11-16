@@ -8,11 +8,12 @@ Designed to feel like a first-party Apple application: minimalist, subtle, clean
 
 ## Capabilities (V1 Roadmap)
 
-- **Lock Mac Screen:** Immediately locks the paired MacBook display.
-- **Put Mac to Sleep:** Places the host Mac into low-power system sleep.
-- **Paired Device Status:** Real-time visibility into connection and power state.
+- **Put Mac to Sleep:** Places the host Mac into low-power system sleep via an authenticated, signed, two-stage handshake.
+- **Session Controls (Disconnect & Reconnect):** Cleanly release and re-establish ephemeral session keys without destructive unpairing.
+- **Paired Device Status:** Real-time visibility into connection, Bonjour service, and device trust state.
 - **Secure QR Pairing:** Out-of-band ephemeral key agreement with 6-digit SAS verification.
 - **Zero Cloud Footprint:** Direct local peer-to-peer transport only. No telemetry or command-routing servers.
+- **Comprehensive Audit Trail:** SQLite persistence of authenticated events and cryptographic receipts.
 
 ---
 
@@ -79,7 +80,8 @@ xcodebuild -project Handshake.xcodeproj -scheme Handshake-iOS -destination 'gene
 
 - **Phase 1: Foundation, Design System & Native Applications** — Completed
 - **Phase 2: Cryptographic Engine & Mutual P-256 Pairing** — Completed
-- **Phase 3: Secure Local Network & Authenticated System Actions (Lock & Sleep)** — Completed
+- **Phase 3: Secure Local Network & Authenticated System Action (Sleep Mac)** — Completed
 - **Phase 4: SQLite Audit Database, Command History & Multi-Stage Pairing Diagnostics** — Completed
 - **Phase 5: Visual Identity (AppIcon Assets), Root-Layer Camera Preview & Reliability Telemetry** — Completed
+- **Phase 6: V1 Simplification & macOS App Icon Integration** — Completed (Sleep Mac streamlined as sole primary action; Lock Screen isolated; native 1024px AppIcon.icns in Dock & Finder).
 - **Automated Verification:** 161 unit, integration, and adversarial tests passing with 0 failures.

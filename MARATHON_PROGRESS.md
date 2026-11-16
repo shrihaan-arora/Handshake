@@ -24,6 +24,7 @@
 | **V1-Val**| Real-World Validation & Security Assurance | Lock screen grace period fail-closed, two-stage sleep receipt, adversarial tests, physical hardware audit | **COMPLETED** | `087009a` |
 | **Mission**| Secure Local Communication Engineering Mission | Local Wi-Fi Bonjour TXT disambiguation, directional AEAD session keys, per-peer replay isolation, 17 adversarial network tests | **COMPLETED** | Local Branch |
 | **Polish** | Pairing Completion, Diagnostics & Disconnect Polish | Fixed missing SAS code via concurrent Mac presentation, added 12 diagnostic stages (`PairingStage`), bounded timeouts, disconnect & reconnect controls, button polish, SQLite audit logging | **COMPLETED** | `feature/pairing-completion-and-disconnect` |
+| **V1-Simple** | V1 Simplification & macOS App Icon Integration | Removed Lock Screen from dashboards, promoted Sleep Mac to sole primary control action, isolated MacLockEngine, integrated 1024px AppIcon.icns in Dock/Finder, verified camera on physical iPhone 16e | **COMPLETED** | `feature/v1-simplification-and-macos-icon` |
 
 ---
 
@@ -58,3 +59,11 @@
 - **2026-11-15 23:22:00:** Polished action buttons: `lock.fill` for Lock Screen, `moon.zzz.fill` for Sleep Mac, `wifi.slash` for Disconnect, with consistent 32x32 frames and VoiceOver accessibility.
 - **2026-11-15 23:24:00:** Updated SQLite audit database logging in `HandshakeServer` and `MacDashboardViewModel`: `pairing_initiated`, `qr_invitation_validated`, `sas_confirmed`, `device_connected`, and `device_disconnected`.
 - **2026-11-15 23:25:00:** Added test cases `PairingEngineTests.testPairingStagesEnumSemanticsAndProgression` and `DatabaseTests.test13_AuditLifecycleEventsRecording`. All 161 tests in HandshakeCore passing cleanly (0 failures). Dual platform builds (`Handshake-macOS` and `Handshake-iOS`) succeeded. Documented in `PAIRING_DIAGNOSTICS.md`.
+- **2026-11-16 20:55:00:** Fixed black camera preview on physical iPhone 16e by removing starvation caused by duplicate video data output and binding preview layer cleanly. Confirmed live by user.
+- **2026-11-16 22:30:00:** V1 Simplification & macOS App Icon Integration:
+  - Removed Lock Screen action from iOS and macOS dashboards; promoted Sleep Mac to sole primary control action.
+  - Isolated `MacLockEngine`; receiver fail-closed rejects unsupported lock requests while preserving backward-compatible database log viewing.
+  - Generated full 1024x1024 Retina `AppIcon.icns` via `iconutil` from approved master artwork `Art/Handshake-Icon-1024.png`.
+  - Configured `Info.plist`, `Handshake.xcodeproj` resources, and LaunchServices registration for full Dock, Finder, and App Switcher visibility.
+  - Deployed and launched updated apps on MacBook Air M4 (`/Applications`) and physical iPhone 16e.
+  - Ran verification harness: all 161 package tests passed with 0 failures, both macOS and iOS targets compiled cleanly.

@@ -10,6 +10,10 @@
 	<string>com.shrihaan.handshake.mac</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleName</key>
 	<string>Handshake</string>
 	<key>CFBundlePackageType</key>
@@ -29,7 +33,7 @@
 		<string>_handshake._tcp</string>
 	</array>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Handshake requires permission to control System Events to lock your Mac and manage display sleep upon your authorized command.</string>
+	<string>Handshake requires permission to control System Events to manage display sleep upon your authorized command.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

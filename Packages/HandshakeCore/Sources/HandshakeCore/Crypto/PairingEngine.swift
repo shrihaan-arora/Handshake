@@ -211,7 +211,7 @@ public actor HostPairingSession {
             pairedAt: Date(),
             lastSeenAt: Date(),
             isRevoked: false,
-            authorizedCapabilities: [.lockScreen, .sleep],
+            authorizedCapabilities: [.sleep],
             preSharedKeyHex: pskHex
         )
         try await trustStore.addOrUpdate(trustRecord)
@@ -380,7 +380,7 @@ public actor ClientPairingSession {
             pairedAt: Date(),
             lastSeenAt: Date(),
             isRevoked: false,
-            authorizedCapabilities: [.lockScreen, .sleep],
+            authorizedCapabilities: [.sleep],
             preSharedKeyHex: pskHex
         )
         try await trustStore.addOrUpdate(trustRecord)

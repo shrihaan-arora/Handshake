@@ -139,23 +139,10 @@ public struct iPhoneDashboardView: View {
                             .padding(.horizontal, HandshakeTheme.Spacing.md)
 
                         HandshakeActionButton(
-                            title: "Lock Screen",
-                            subtitle: "Locks display and requires Touch ID / password",
-                            systemImage: "lock.fill",
-                            style: .primary,
-                            isEnabled: viewModel.pairedMac != nil && !viewModel.isExecutingCommand,
-                            isLoading: viewModel.isExecutingCommand && viewModel.commandStage.command == .lockScreen,
-                            statusBadge: viewModel.commandStage.command == .lockScreen ? viewModel.commandStage.stageLabel : nil
-                        ) {
-                            viewModel.handleLockMacTapped()
-                        }
-                        .padding(.horizontal, HandshakeTheme.Spacing.md)
-
-                        HandshakeActionButton(
                             title: "Sleep Mac",
                             subtitle: "Puts system into low-power sleep mode",
                             systemImage: "moon.zzz.fill",
-                            style: .secondary,
+                            style: .primary,
                             isEnabled: viewModel.pairedMac != nil && !viewModel.isExecutingCommand,
                             isLoading: viewModel.isExecutingCommand && viewModel.commandStage.command == .sleep,
                             statusBadge: viewModel.commandStage.command == .sleep ? viewModel.commandStage.stageLabel : nil

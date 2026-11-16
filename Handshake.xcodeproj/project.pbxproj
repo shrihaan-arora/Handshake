@@ -33,6 +33,7 @@
 		288E4C43AAF0EF5B4CAAC8DD /* CommandHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AEBAFEE65D84C427F419EBC /* CommandHistoryView.swift */; };
 		3CA308BCB1EC46C1EAFE15F4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 54B0FD91135BBAD54649EA3E /* Assets.xcassets */; };
 		FF328F9A32CE72F5363CDE24 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 639D3A1ACF17F5AC027FF4BD /* Assets.xcassets */; };
+		F036126F2E29BD2BE3FD0DF0 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 01D68E173B2D6EB3B7A61215 /* AppIcon.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +63,7 @@
 		D641E469EF756FDF2D13619C /* Handshake-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		54B0FD91135BBAD54649EA3E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Applications/Handshake-iOS/Assets.xcassets"; sourceTree = "<group>"; };
 		639D3A1ACF17F5AC027FF4BD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Applications/Handshake-macOS/Assets.xcassets"; sourceTree = "<group>"; };
+		01D68E173B2D6EB3B7A61215 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = "Applications/Handshake-macOS/Resources/AppIcon.icns"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +130,7 @@
 				632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */,
 				4AEBAFEE65D84C427F419EBC /* CommandHistoryView.swift */,
 				639D3A1ACF17F5AC027FF4BD /* Assets.xcassets */,
+				01D68E173B2D6EB3B7A61215 /* AppIcon.icns */,
 			);
 			name = "Handshake-macOS";
 			sourceTree = "<group>";
@@ -247,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FF328F9A32CE72F5363CDE24 /* Assets.xcassets in Resources */,
+				F036126F2E29BD2BE3FD0DF0 /* AppIcon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -18,11 +18,11 @@
 | **QR Code Pairing Protocol** | Protocol | Camera (iOS) / CoreImage (macOS) | Yes | Yes (5 tests) | **Implemented (Milestone C)** |
 | **Wi-Fi Transport (Bonjour)** | Network | `_handshake._tcp` (NWListener/NWConnection) | Yes | Yes | **Implemented (Milestone D)** |
 | **AEAD Wire Framing** | Crypto | AES-256-GCM / HKDF-SHA256 / 4-byte framing | Yes | Yes (6 tests) | **Implemented (Milestone D)** |
-| **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Yes | Yes (SystemEngineTests) | **Implemented (Milestone E)** |
-| **Sleep Mac Command Engine** | macOS System | IOKit power management | Yes | Yes (SystemEngineTests) | **Implemented (Milestone F)** |
+| **Lock Mac Command Engine** | macOS System | macOS 14+ Apple Silicon | Isolated | Yes (SystemEngineTests) | **Isolated (Scope Simplified for V1)** |
+| **Sleep Mac Command Engine** | macOS System | IOKit power management | Yes | Yes (SystemEngineTests) | **Hardened (Primary Action)** |
 | **Bluetooth LE Transport** | Network | CoreBluetooth Central/Peripheral | Yes | Yes (BLETransportTests) | **Implemented (Milestone G)** |
-| **iPhone Dashboard UI** | iOS App | iPhone 16e (A18), iOS 17+ | Yes | Yes | **Integrated** |
-| **Mac Companion UI** | macOS App | MacBook Air (M4), macOS 14+ | Yes | Yes | **Integrated** |
+| **iPhone Dashboard UI** | iOS App | iPhone 16e (A18), iOS 17+ | Yes | Yes (Verified on Hardware) | **Streamlined (Sleep Mac Primary)** |
+| **Mac Companion UI** | macOS App | MacBook Air (M4), macOS 14+ | Yes | Yes (Verified on Hardware) | **Integrated (1024px AppIcon in Dock)** |
 
 ---
 

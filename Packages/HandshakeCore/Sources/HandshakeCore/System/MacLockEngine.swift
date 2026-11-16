@@ -2,9 +2,9 @@
 import Foundation
 import AppKit
 
-/// Supported macOS display locking engine using Apple-documented system interfaces.
-/// Implements transparent permission auditing, multi-stage state tracking,
-/// independent post-execution verification, and strict screen lock grace period enforcement.
+/// Supported macOS display locking engine (Isolated for V1; Sleep Mac is the primary control action).
+/// Retained for architectural reference and unit test backward compatibility.
+@available(*, deprecated, message: "Lock Screen is unsupported in V1; Sleep Mac is the primary control action.")
 public final class MacLockEngine: Sendable {
 
     /// The password requirement policy after display sleep or screen saver begins.

@@ -60,30 +60,6 @@ public struct MacDashboardView: View {
                     )
                 }
 
-                // Lock Configuration Warning Banner
-                if let warning = viewModel.lockConfigurationWarning {
-                    MacCard {
-                        HStack(alignment: .top, spacing: MacTheme.Spacing.md) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.yellow)
-                                .padding(.top, 2)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Display Lock Grace Period Warning")
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-
-                                Text(warning)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Display Lock Grace Period Warning: \(warning)")
-                }
-
                 // Connection & Listener Status Card
                 MacCard {
                     HStack(spacing: MacTheme.Spacing.lg) {
