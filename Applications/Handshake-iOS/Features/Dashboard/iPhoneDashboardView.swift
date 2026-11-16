@@ -87,29 +87,38 @@ public struct iPhoneDashboardView: View {
                         .accessibilityLabel("Paired device: \(mac.displayName), \(mac.modelIdentifier), fingerprint \(mac.shortFingerprint)")
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     } else {
-                        HandshakeCard {
-                            HStack(spacing: HandshakeTheme.Spacing.md) {
-                                Image(systemName: "macbook.and.iphone")
-                                    .font(.system(size: 28, weight: .light))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: HandshakeTheme.Radius.sm, style: .continuous))
+                        Button {
+                            viewModel.handlePairNewDeviceTapped()
+                        } label: {
+                            HandshakeCard {
+                                HStack(spacing: HandshakeTheme.Spacing.md) {
+                                    Image(systemName: "qrcode.viewfinder")
+                                        .font(.system(size: 28, weight: .medium))
+                                        .foregroundStyle(Color.accentColor)
+                                        .frame(width: 44, height: 44)
+                                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: HandshakeTheme.Radius.sm, style: .continuous))
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("No Paired MacBook")
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Pair With Your Mac")
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
 
-                                    Text("Pair with your Mac to enable direct local control.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        Text("Tap to open camera and scan pairing QR code")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
                                 }
-
-                                Spacer()
                             }
                         }
+                        .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("No paired MacBook. Pair with your Mac to enable direct local control.")
+                        .accessibilityLabel("No paired MacBook. Tap to open camera and scan pairing QR code.")
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     }
 
