@@ -24,7 +24,7 @@ Rather than assuming previous claims, every component was audited against physic
 3. **Transport Security Honesty Corrected:**  
    Earlier interface labels describing the transport as "TLS 1.3" were corrected across `MacDashboardView.swift` and documentation. The transport is honestly documented as **Application-Level AEAD (AES-256-GCM + NIST P-256 ECDSA) over Raw TCP with Bonjour and BLE signaling**.
 4. **Hardware Validation on Physical iPhone 16e:**  
-   The connected physical iPhone 16e (`00008140-00042C3902F2801C`) was tested. Compilation succeeded cleanly for `arm64-apple-ios`. Physical deployment via `devicectl` failed with code `0xe800801c` because the local free personal provisioning profile expired on `2026-07-01`. This was strictly classified as **BLOCKED** on installation awaiting user profile renewal in Xcode, upholding Apple-grade security honesty.
+   The connected physical iPhone 16e (`[REDACTED_IPHONE_UDID]`) was tested. Compilation succeeded cleanly for `arm64-apple-ios`. Physical deployment via `devicectl` failed with code `0xe800801c` because the local free personal provisioning profile expired on `2026-07-01`. This was strictly classified as **BLOCKED** on installation awaiting user profile renewal in Xcode, upholding Apple-grade security honesty.
 5. **UI Security Honesty Audited:**  
    `SecurityShieldBadge` and `SecurityAuditView` now dynamically evaluate `isHardwareBacked` from the loaded `CryptoIdentity`. Keys generated on the simulator or without Secure Enclave hardware are honestly badged as `"Keychain-Pinned E2EE"` rather than claiming Secure Enclave hardware backing.
 
@@ -53,8 +53,8 @@ Rather than assuming previous claims, every component was audited against physic
 
 ### Section 3: Real Physical Hardware Testing
 * **Host Mac:** MacBook Air (Apple M4, macOS 27.0 `26A428`, arm64).
-* **Physical Device:** iPhone 16e (`iPhone17,5`, UDID `00008140-00042C3902F2801C`, iOS 27.0, Developer Mode enabled).
-* **Compilation:** `xcodebuild -destination "id=00008140-..."` succeeded in 3.8s with 0 warnings.
+* **Physical Device:** iPhone 16e (`iPhone17,5`, UDID `[REDACTED_IPHONE_UDID]`, iOS 27.0, Developer Mode enabled).
+* **Compilation:** `xcodebuild -destination "id=[REDACTED_DEVICE_ID]"` succeeded in 3.8s with 0 warnings.
 * **Installation:** Attempting installation via `xcrun devicectl` returned `0xe800801c (No code signature found / ApplicationVerificationFailed)` due to an expired personal provisioning profile (expired `2026-07-01`).
 * **Classification:** Compilation is **PASS**. Physical deployment is **BLOCKED** until the user opens Xcode and renews the personal team profile.
 * **Deliverable:** `Documentation/DEVICE_TEST_MATRIX.md`.

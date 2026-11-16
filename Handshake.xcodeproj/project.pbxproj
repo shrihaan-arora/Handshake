@@ -15,8 +15,8 @@
 		C3FF92E98E3A65F694D0DCA6 /* SecurityShieldBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E6FD493987AD46F11421D61 /* SecurityShieldBadge.swift */; };
 		10F06B36E1D98255BE18C7B8 /* StatusPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37CB9695DEE7334D88F50887 /* StatusPillView.swift */; };
 		091244B5669E5DEED53FEA7D /* HandshakeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */; };
+		782D4BA9F92459332F35BEA7 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EDE0E10043B1ACC467C12A /* CameraManager.swift */; };
 		0CE0015E863DB949314EB3EA /* CameraPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026996BA9E680D5B03D61083 /* CameraPermissionManager.swift */; };
-		B2C3D4E5F6A7B8C9D0E1F2A3 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* CameraManager.swift */; };
 		D72B7B80AA0383CC61324E1A /* PairingScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */; };
 		CEFD6A2F8A1DCD5377345425 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE56925AE2B4AF0E107B98DD /* QRScannerView.swift */; };
 		718E07E3F2CD92240596D5EF /* SecurityAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */; };
@@ -30,7 +30,9 @@
 		4567C02B818A563728483958 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */; };
 		4146766024FE0C87784004E4 /* MacDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69080528823D56DBD4CE70A0 /* MacDashboardView.swift */; };
 		056FE67800AC3D295D3073A1 /* MacDashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */; };
-		C011A4D001091A2B3C4D5E6F /* CommandHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D011B4D001091A2B3C4D5E6F /* CommandHistoryView.swift */; };
+		288E4C43AAF0EF5B4CAAC8DD /* CommandHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AEBAFEE65D84C427F419EBC /* CommandHistoryView.swift */; };
+		3CA308BCB1EC46C1EAFE15F4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 54B0FD91135BBAD54649EA3E /* Assets.xcassets */; };
+		FF328F9A32CE72F5363CDE24 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 639D3A1ACF17F5AC027FF4BD /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,8 +42,8 @@
 		6E6FD493987AD46F11421D61 /* SecurityShieldBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/SecurityShieldBadge.swift"; sourceTree = "<group>"; };
 		37CB9695DEE7334D88F50887 /* StatusPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/DesignSystem/StatusPillView.swift"; sourceTree = "<group>"; };
 		EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/App/HandshakeApp.swift"; sourceTree = "<group>"; };
+		F7EDE0E10043B1ACC467C12A /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/CameraManager.swift"; sourceTree = "<group>"; };
 		026996BA9E680D5B03D61083 /* CameraPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/CameraPermissionManager.swift"; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/CameraManager.swift"; sourceTree = "<group>"; };
 		19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/PairingScannerView.swift"; sourceTree = "<group>"; };
 		EE56925AE2B4AF0E107B98DD /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Pairing/QRScannerView.swift"; sourceTree = "<group>"; };
 		81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-iOS/Features/Security/SecurityAuditView.swift"; sourceTree = "<group>"; };
@@ -55,9 +57,11 @@
 		43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/MenuBar/MenuBarView.swift"; sourceTree = "<group>"; };
 		69080528823D56DBD4CE70A0 /* MacDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardView.swift"; sourceTree = "<group>"; };
 		632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/Dashboard/MacDashboardViewModel.swift"; sourceTree = "<group>"; };
-		D011B4D001091A2B3C4D5E6F /* CommandHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/History/CommandHistoryView.swift"; sourceTree = "<group>"; };
+		4AEBAFEE65D84C427F419EBC /* CommandHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Applications/Handshake-macOS/Features/History/CommandHistoryView.swift"; sourceTree = "<group>"; };
 		EF079666B2FDC95C01A3DA99 /* Handshake-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D641E469EF756FDF2D13619C /* Handshake-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Handshake-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		54B0FD91135BBAD54649EA3E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Applications/Handshake-iOS/Assets.xcassets"; sourceTree = "<group>"; };
+		639D3A1ACF17F5AC027FF4BD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Applications/Handshake-macOS/Assets.xcassets"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,13 +103,14 @@
 				6E6FD493987AD46F11421D61 /* SecurityShieldBadge.swift */,
 				37CB9695DEE7334D88F50887 /* StatusPillView.swift */,
 				EC0D2FFDD0C8C2DCD93A018E /* HandshakeApp.swift */,
+				F7EDE0E10043B1ACC467C12A /* CameraManager.swift */,
 				026996BA9E680D5B03D61083 /* CameraPermissionManager.swift */,
-				A1B2C3D4E5F6A7B8C9D0E1F2 /* CameraManager.swift */,
 				19B1FC244756EA8EA650EE8C /* PairingScannerView.swift */,
 				EE56925AE2B4AF0E107B98DD /* QRScannerView.swift */,
 				81AD80EC33C860F22C1853B9 /* SecurityAuditView.swift */,
 				D947704831C92065C6E978CA /* DashboardViewModel.swift */,
 				8FC4C1BF7C2A23EF38FE5D2F /* iPhoneDashboardView.swift */,
+				54B0FD91135BBAD54649EA3E /* Assets.xcassets */,
 			);
 			name = "Handshake-iOS";
 			sourceTree = "<group>";
@@ -121,7 +126,8 @@
 				43EE1DC8E34F6BCA25260EC2 /* MenuBarView.swift */,
 				69080528823D56DBD4CE70A0 /* MacDashboardView.swift */,
 				632B738E65B6B73612DE0F51 /* MacDashboardViewModel.swift */,
-				D011B4D001091A2B3C4D5E6F /* CommandHistoryView.swift */,
+				4AEBAFEE65D84C427F419EBC /* CommandHistoryView.swift */,
+				639D3A1ACF17F5AC027FF4BD /* Assets.xcassets */,
 			);
 			name = "Handshake-macOS";
 			sourceTree = "<group>";
@@ -232,6 +238,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3CA308BCB1EC46C1EAFE15F4 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,6 +246,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FF328F9A32CE72F5363CDE24 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,8 +263,8 @@
 				C3FF92E98E3A65F694D0DCA6 /* SecurityShieldBadge.swift in Sources */,
 				10F06B36E1D98255BE18C7B8 /* StatusPillView.swift in Sources */,
 				091244B5669E5DEED53FEA7D /* HandshakeApp.swift in Sources */,
+				782D4BA9F92459332F35BEA7 /* CameraManager.swift in Sources */,
 				0CE0015E863DB949314EB3EA /* CameraPermissionManager.swift in Sources */,
-				B2C3D4E5F6A7B8C9D0E1F2A3 /* CameraManager.swift in Sources */,
 				D72B7B80AA0383CC61324E1A /* PairingScannerView.swift in Sources */,
 				CEFD6A2F8A1DCD5377345425 /* QRScannerView.swift in Sources */,
 				718E07E3F2CD92240596D5EF /* SecurityAuditView.swift in Sources */,
@@ -277,7 +285,7 @@
 				4567C02B818A563728483958 /* MenuBarView.swift in Sources */,
 				4146766024FE0C87784004E4 /* MacDashboardView.swift in Sources */,
 				056FE67800AC3D295D3073A1 /* MacDashboardViewModel.swift in Sources */,
-				C011A4D001091A2B3C4D5E6F /* CommandHistoryView.swift in Sources */,
+				288E4C43AAF0EF5B4CAAC8DD /* CommandHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

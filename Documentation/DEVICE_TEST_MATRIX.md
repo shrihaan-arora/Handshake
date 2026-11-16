@@ -13,7 +13,7 @@
 | Device Designation | Hardware Model | Chipset | OS Version | Hardware State | Connection / Role |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Host Mac** | MacBook Air | Apple Silicon M4 | macOS 27.0 (`26A428`) | Physical Hardware | Host Companion Application & Local TCP Listener |
-| **Physical iPhone** | iPhone 16e (`iPhone17,5`) | Apple A18 | iOS 27.0 | Physical Hardware (Connected) | UDID: `00008140-00042C3902F2801C`<br>Developer Mode: **Enabled**<br>Paired: **Yes** (via USB / CoreDevice Tunnel `fdef:25df:8922::1`) |
+| **Physical iPhone** | iPhone 16e (`iPhone17,5`) | Apple A18 | iOS 27.0 | Physical Hardware (Connected) | UDID: `[REDACTED_IPHONE_UDID]`<br>Developer Mode: **Enabled**<br>Paired: **Yes** (via USB / CoreDevice Tunnel `fdef:25df:8922::1`) |
 | **Simulator iPhone** | iPhone 17 Pro (`iPhone18,1`) | Host M4 (Simulated) | iOS 27.2 Simulator | Virtual Simulator | UDID: `C1A9EFF4-0F6E-4235-B2F1-4ACD3A4B3673`<br>Automated UI & Framework Test Target |
 
 ---
@@ -25,8 +25,8 @@
 | **HandshakeCore Package Tests** | MacBook Air M4 | `swift test` (85 unit & benchmark tests) | All tests pass, 0 failures | 85 passed, 0 failures (1.459s) | **PASS** |
 | **Mac App Compilation** | MacBook Air M4 | `xcodebuild -scheme Handshake-macOS` | Clean build, 0 warnings | Build Succeeded (1.8s, 0 warnings) | **PASS** |
 | **iOS Target Build (Simulator)** | Simulator `iphonesimulator` | `xcodebuild -scheme Handshake-iOS` | Clean build, 0 warnings | Build Succeeded (3.2s, 0 warnings) | **PASS** |
-| **iOS Target Build (Physical Device)** | iPhone 16e (`00008140-00042C3902F2801C`) | `xcodebuild -destination "id=00008140-..."` | Clean build for `arm64-apple-ios` | Build Succeeded (3.8s, 0 warnings) | **PASS** |
-| **Physical App Installation** | iPhone 16e (`00008140-00042C3902F2801C`) | `xcrun devicectl device install app` | App installed on SpringBoard | Error `0xe800801c` (Provisioning profile expired) | **BLOCKED** |
+| **iOS Target Build (Physical Device)** | iPhone 16e (`[REDACTED_IPHONE_UDID]`) | `xcodebuild -destination "id=[REDACTED_DEVICE_ID]"` | Clean build for `arm64-apple-ios` | Build Succeeded (3.8s, 0 warnings) | **PASS** |
+| **Physical App Installation** | iPhone 16e (`[REDACTED_IPHONE_UDID]`) | `xcrun devicectl device install app` | App installed on SpringBoard | Error `0xe800801c` (Provisioning profile expired) | **BLOCKED** |
 | **Screen Lock Grace Period** | MacBook Air M4 | `/usr/sbin/sysadminctl -screenLock status` | `screenLock delay is immediate` | Output: `screenLock delay is immediate` | **PASS** |
 | **System Sleep Support** | MacBook Air M4 | `IOPMSleepEnabled()` / IOKit Root Domain | Support returned non-zero | `IOPMSleepEnabled() == 1` | **PASS** |
 | **Local TCP Bonjour Listener** | MacBook Air M4 | `HandshakeServer` on port 5894 | `_handshake._tcp` bound & ready | Listening on TCP 5894 | **PASS** |
@@ -40,7 +40,7 @@
 ### 3.1 Device Identity & Pairing State
 The physical iPhone was queried directly via `xcrun devicectl`:
 ```
-Identifier: 00008140-00042C3902F2801C
+Identifier: [REDACTED_IPHONE_UDID]
 Name: iPhone
 Model: iPhone 16e (iPhone17,5)
 Reality: physical
@@ -51,7 +51,7 @@ Operating System: iOS 27.0
 ```
 
 ### 3.2 Compilation for Physical Device Architecture
-Building `Handshake-iOS` for destination `id=00008140-00042C3902F2801C` succeeded cleanly with zero warnings:
+Building `Handshake-iOS` for destination `id=[REDACTED_IPHONE_UDID]` succeeded cleanly with zero warnings:
 ```
 ** BUILD SUCCEEDED ** [3.859 sec]
 Products Directory: /Users/SHREEHANARORA/Library/Developer/Xcode/DerivedData/Handshake-ckokmlywszwrijdicsxhwomkkicw/Build/Products/Debug-iphoneos/Handshake-iOS.app
@@ -66,9 +66,9 @@ ERROR: Unable to Install “Handshake” (IXUserPresentableErrorDomain error 14 
 ```
 
 Further forensic inspection of the host's development profiles revealed:
-- **Available Signing Identity:** `Apple Development: 917800967120 (UX2THUQYT3)` (Valid in Keychain)
+- **Available Signing Identity:** `Apple Development: [REDACTED_SIGNING_IDENTITY]` (Valid in Keychain)
 - **Provisioning Profile on Disk:** `iOS Team Provisioning Profile: file.Simple-Calculator`
-  - Provisioned Device: `00008140-00042C3902F2801C` (Exact match)
+  - Provisioned Device: `[REDACTED_IPHONE_UDID]` (Exact match)
   - Team Identifier: `DW8DPY9ALB` (Shrihaan Arora)
   - Expiration Date: `2026-07-01T08:31:23Z` (**EXPIRED**)
 

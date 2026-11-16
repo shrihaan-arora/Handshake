@@ -6,4 +6,22 @@ DerivedData/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 .swiftpm/
 
+# Database files
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+
+# Credentials & Provisioning
+*.mobileprovision
+*.p12
+*.cer
+*.pem
+*.key
+
+# Logs & temp files
+*.log
+.coverage/
+
+
 

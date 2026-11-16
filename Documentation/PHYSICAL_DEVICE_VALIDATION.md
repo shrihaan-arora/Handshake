@@ -11,7 +11,7 @@
 
 | Device | Specification | Architecture | OS Version | Hardware UDID / Identifier | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **iPhone 16e** | Apple A18 Chip | `arm64e` | iOS 27.0 (`24A437`) | `00008140-00042C3902F2801C` | **ACTIVE** (PID 20722, Verified by User) |
+| **iPhone 16e** | Apple A18 Chip | `arm64e` | iOS 27.0 (`24A437`) | `[REDACTED_IPHONE_UDID]` | **ACTIVE** (PID 20722, Verified by User) |
 | **MacBook Air M4** | Apple M4 Chip | `arm64e` | macOS 14.0+ (`26B118`) | Host Machine | **ACTIVE** (PID 37264, Advertising `_handshake._tcp`) |
 
 ---
@@ -21,7 +21,7 @@
 Inspection was performed using Apple's official device management tool (`xcrun devicectl`):
 
 ```bash
-xcrun devicectl device info details --device 00008140-00042C3902F2801C
+xcrun devicectl device info details --device [REDACTED_IPHONE_UDID]
 ```
 
 ### Verified Properties:
@@ -77,7 +77,7 @@ To deploy Handshake directly onto the physical iPhone 16e:
      ```bash
      xcodebuild -project Handshake.xcodeproj \
                 -scheme Handshake-iOS \
-                -destination "id=00008140-00042C3902F2801C" \
+                -destination "id=[REDACTED_IPHONE_UDID]" \
                 install
      ```
 4. **Trust Developer Certificate (First Launch Only):**
@@ -109,7 +109,7 @@ To deploy Handshake directly onto the physical iPhone 16e:
 - **`QRScannerView`**: Built high-reliability `UIViewControllerRepresentable` wrapper around `AVCaptureSession`, running hardware discovery, session initialization, and teardown strictly on a background serial queue (`com.handshake.camera.session`), with `.qr` metadata detection on a dedicated queue and main-actor dispatch for UI updates.
 - **Interactive UI**: Redesigned `PairingScannerView` with animated scanning laser, corner reticle, flashlight/torch toggle, dynamic validation indicator, independent 6-digit SAS verification screen, and bilateral confirmation approval.
 - **`PairingInvitation.parse`**: Added comprehensive parser validating URL schemes, version (`v=1`), session UUIDs, hex keys, ports, and enforcing strict expiration checks, with 12 unit tests in `ModelTests.swift`.
-- **Physical Device Deployment**: Successfully compiled with personal team `DW8DPY9ALB` and deployed onto physical iPhone 16e (`00008140-00042C3902F2801C`) via `xcrun devicectl` (PID 20832). Verified Mac server listening on port 5894 (PID 39587).
+- **Physical Device Deployment**: Successfully compiled with personal team `DW8DPY9ALB` and deployed onto physical iPhone 16e (`[REDACTED_IPHONE_UDID]`) via `xcrun devicectl` (PID 20832). Verified Mac server listening on port 5894 (PID 39587).
 
 ---
 
@@ -135,7 +135,7 @@ To deploy Handshake directly onto the physical iPhone 16e:
    - Assigned `metadataOutput.metadataObjectTypes = [.qr]` after `commitConfiguration()`.
    - Added camera discovery session querying `.builtInTripleCamera`, `.builtInDualWideCamera`, `.builtInDualCamera`, and `.builtInWideAngleCamera`.
 4. **Physical Deployment:**
-   - Built and deployed to iPhone 16e (`00008140-00042C3902F2801C`).
+   - Built and deployed to iPhone 16e (`[REDACTED_IPHONE_UDID]`).
    - All 122 package unit tests passed, macOS and iOS builds clean.
 
 ---
@@ -172,7 +172,7 @@ To deploy Handshake directly onto the physical iPhone 16e:
    - Debounces identical scans within 1.5 seconds.
 5. **Physical Hardware Validation:**
    - Compiled for `arm64-apple-ios` with personal team profile `DW8DPY9ALB`.
-   - Deployed and launched on physical iPhone 16e (`00008140-00042C3902F2801C`).
+   - Deployed and launched on physical iPhone 16e (`[REDACTED_IPHONE_UDID]`).
    - Verified 130 tests pass with zero warnings and zero failures.
 
 ---

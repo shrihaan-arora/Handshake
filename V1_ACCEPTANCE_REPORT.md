@@ -19,7 +19,7 @@ Handshake V1 has completed its comprehensive real-world validation, physical har
 4. **Local Network Transport**: Local Bonjour `_handshake._tcp` (port 5894) with 4-byte framed AES-256-GCM AEAD encryption and P-256 ECDSA signatures. Correctly and honestly documented as **Application-Level AEAD over Raw TCP**, not TLS.
 5. **Strict Application Lifecycle**: Foreground-only on iPhone (`Info.plist` has zero background modes); window-bound on macOS (listener active strictly while companion window is open). Zero persistent background daemons, zero `LaunchAgents`, zero `LaunchDaemons`, zero login items, zero cloud telemetry.
 6. **Local SQLite Audit Database**: Persistent audit database at `~/Library/Application Support/Handshake/handshake.sqlite` with strict POSIX permissions (`0700` dir, `0600` file), WAL mode, and parameterized queries. Fail-safe logging guarantees database write failures never disrupt command execution. Native read-only `CommandHistoryView` provides real-time audit inspection.
-7. **Physical Hardware Validation**: Host MacBook Air (Apple M4) and iPhone 16e (`00008140-00042C3902F2801C`) verified on physical hardware. Physical camera preview, AVFoundation QR scanner, and local network control fully operational.
+7. **Physical Hardware Validation**: Host MacBook Air (Apple M4) and iPhone 16e (`[REDACTED_IPHONE_UDID]`) verified on physical hardware. Physical camera preview, AVFoundation QR scanner, and local network control fully operational.
 8. **End-to-End Adversarial Security Audit**: All 10 adversarial attack scenarios (invalid QR, modified QR, expired QR, replay, duplicate request IDs, invalid signatures, authentication failures, malformed network messages, interrupted connections, database write failures) thoroughly verified with passing automated tests.
 
 ---
@@ -101,7 +101,7 @@ Handshake V1 meets every required security property and Apple platform guideline
   - Dashboard Window: Active (`bounds=["X": 495, "Width": 720, "Y": 127, "Height": 612]`)
   - Pairing Sheet: Active (`bounds=["X": 625, "Width": 460, "Y": 195, "Height": 476]`), displaying live 120s QR code
 - **Client Device:** Physical iPhone 16e (Apple A18, iOS 27.0, arm64e)
-  - Hardware UDID: `00008140-00042C3902F2801C`
+  - Hardware UDID: `[REDACTED_IPHONE_UDID]`
   - Connection: Wired USB-C (`devicectl` paired, developer mode active)
   - App: `com.shrihaan.handshake.ios` (v1.0.0, build 1) foreground active (verified via `devicectl capture screenshot` & Vision OCR)
 

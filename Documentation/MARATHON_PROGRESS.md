@@ -17,7 +17,7 @@
 | **M3** | Nonce Lifecycle Hardening | 12-byte deterministic nonce ($4\text{B salt} + 8\text{B counter}$) | **PASS** | `SecureChannel.swift`, `NONCE_LIFECYCLE.md` |
 | **M4** | Keychain PSK Isolation | Scrub raw PSK from JSON; isolate in Keychain; wipe on revocation | **PASS** | `TrustStore.swift`, `KeychainManager.swift` |
 | **M5** | Transport Security Review | Detailed evaluation of Application-Level AEAD vs. TLS 1.3 | **PASS** | `TRANSPORT_SECURITY_EVALUATION.md` |
-| **M6** | Physical Device Audit | iPhone 16e (`00008140-00042C3902F2801C`) & MacBook Air M4 | **PASS** | `devicectl`, `PHYSICAL_DEVICE_VALIDATION.md` |
+| **M6** | Physical Device Audit | iPhone 16e (`[REDACTED_IPHONE_UDID]`) & MacBook Air M4 | **PASS** | `devicectl`, `PHYSICAL_DEVICE_VALIDATION.md` |
 | **M7** | Physical Native Builds | Clean `arm64` builds for macOS and physical iOS targets | **PASS** | `xcodebuild` BUILD SUCCEEDED |
 | **M8** | Sleep Reliability Protocol | Two-stage acknowledgment & receipt with 3.0s grace fallback | **PASS** | `ACKNOWLEDGEMENT_RELIABILITY.md` |
 | **M9** | Performance Benchmarking | Cryptographic & loopback command dispatch benchmarks | **PASS** | `BenchmarkTests.swift`, `PERFORMANCE_RESULTS.md` |

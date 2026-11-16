@@ -2,11 +2,38 @@ import Foundation
 import AVFoundation
 import UIKit
 
+/// Privacy-preserving, non-blocking telemetry model for camera session diagnostics.
+public struct CameraTelemetry: Sendable, CustomStringConvertible {
+    public var state: String = "unconfigured"
+    public var deviceName: String = "none"
+    public var devicePosition: String = "none"
+    public var activeFormat: String = "none"
+    public var hasInput: Bool = false
+    public var hasMetadataOutput: Bool = false
+    public var hasVideoOutput: Bool = false
+    public var frameCount: UInt64 = 0
+    public var firstFrameReceivedAt: Date? = nil
+    public var lastFrameReceivedAt: Date? = nil
+    public var lastInterruptionReason: String? = nil
+    public var lastErrorMessage: String? = nil
+
+    public var description: String {
+        """
+        [CameraTelemetry] State: \(state), Device: \(deviceName) (\(devicePosition)), Format: \(activeFormat), Inputs: \(hasInput), Metadata: \(hasMetadataOutput), VideoData: \(hasVideoOutput), Frames: \(frameCount), FirstFrame: \(String(describing: firstFrameReceivedAt)), LastFrame: \(String(describing: lastFrameReceivedAt)), Interruption: \(lastInterruptionReason ?? "None"), Error: \(lastErrorMessage ?? "None")
+        """
+    }
+}
+
+public extension Notification.Name {
+    static let cameraSessionDidStartRunning = Notification.Name("com.handshake.camera.sessionDidStartRunning")
+    static let cameraSessionStateChanged = Notification.Name("com.handshake.camera.sessionStateChanged")
+}
+
 /// High-reliability AVFoundation Camera & QR Scanning Manager for iOS.
 /// Manages the full capture session lifecycle, hardware device discovery, preview layer binding,
-/// metadata output parsing, torch control, orientation handling, and error reporting.
+/// metadata output parsing, video frame delivery telemetry, torch control, orientation handling, and error reporting.
 /// All capture session operations run exclusively on a dedicated background serial queue.
-public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelegate, @unchecked Sendable {
+public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelegate, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     public static let shared = CameraManager()
 
     // MARK: - State Management
@@ -15,20 +42,32 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
         case configuring
         case configured
         case running
+        case interrupted(String)
         case stopped
         case failed(String)
     }
 
     public private(set) var state: SessionState = .unconfigured
 
+    // MARK: - Telemetry
+    private let telemetryLock = NSLock()
+    private var _telemetry = CameraTelemetry()
+    public var currentTelemetry: CameraTelemetry {
+        telemetryLock.lock()
+        defer { telemetryLock.unlock() }
+        return _telemetry
+    }
+
     // MARK: - Dedicated Queues
     public let sessionQueue = DispatchQueue(label: "com.handshake.camera.session", qos: .userInitiated)
     private let metadataQueue = DispatchQueue(label: "com.handshake.camera.metadata", qos: .userInteractive)
+    private let videoDataQueue = DispatchQueue(label: "com.handshake.camera.videodata", qos: .utility)
 
     // MARK: - Capture Components
     public let captureSession = AVCaptureSession()
     private var videoDeviceInput: AVCaptureDeviceInput?
     private var metadataOutput: AVCaptureMetadataOutput?
+    private var videoDataOutput: AVCaptureVideoDataOutput?
     private var backCameraDevice: AVCaptureDevice?
 
     // MARK: - Scanning Callbacks & Filters
@@ -43,6 +82,107 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
 
     public override init() {
         super.init()
+        registerNotificationObservers()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Interruption & Runtime Error Observers
+
+    private func registerNotificationObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionWasInterrupted(_:)),
+            name: .AVCaptureSessionWasInterrupted,
+            object: captureSession
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionInterruptionEnded(_:)),
+            name: .AVCaptureSessionInterruptionEnded,
+            object: captureSession
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionRuntimeError(_:)),
+            name: .AVCaptureSessionRuntimeError,
+            object: captureSession
+        )
+    }
+
+    @objc private func sessionWasInterrupted(_ notification: Notification) {
+        var reasonStr = "Unknown"
+        if let reasonValue = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int,
+           let reason = AVCaptureSession.InterruptionReason(rawValue: reasonValue) {
+            switch reason {
+            case .videoDeviceNotAvailableInBackground:
+                reasonStr = "videoDeviceNotAvailableInBackground"
+            case .audioDeviceInUseByAnotherClient:
+                reasonStr = "audioDeviceInUseByAnotherClient"
+            case .videoDeviceInUseByAnotherClient:
+                reasonStr = "videoDeviceInUseByAnotherClient"
+            case .videoDeviceNotAvailableWithMultipleForegroundApps:
+                reasonStr = "videoDeviceNotAvailableWithMultipleForegroundApps"
+            case .videoDeviceNotAvailableDueToSystemPressure:
+                reasonStr = "videoDeviceNotAvailableDueToSystemPressure"
+            @unknown default:
+                reasonStr = "unknown (\(reasonValue))"
+            }
+        }
+
+        telemetryLock.lock()
+        _telemetry.state = "interrupted: \(reasonStr)"
+        _telemetry.lastInterruptionReason = reasonStr
+        state = .interrupted(reasonStr)
+        telemetryLock.unlock()
+
+        print("[CameraTelemetry] Session interrupted: \(reasonStr)")
+    }
+
+    @objc private func sessionInterruptionEnded(_ notification: Notification) {
+        print("[CameraTelemetry] Session interruption ended. Resuming pipeline...")
+        telemetryLock.lock()
+        _telemetry.lastInterruptionReason = nil
+        _telemetry.state = "resuming"
+        telemetryLock.unlock()
+
+        if isScanningActive {
+            startSession()
+        }
+    }
+
+    @objc private func sessionRuntimeError(_ notification: Notification) {
+        guard let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError else { return }
+        let errDesc = "\(error.localizedDescription) (code: \(error.code.rawValue))"
+        print("[CameraTelemetry] Capture session runtime error: \(errDesc)")
+
+        telemetryLock.lock()
+        _telemetry.lastErrorMessage = errDesc
+        _telemetry.state = "failed: \(errDesc)"
+        state = .failed(error.localizedDescription)
+        telemetryLock.unlock()
+
+        if error.code == .mediaServicesWereReset {
+            print("[CameraTelemetry] Media services were reset by system. Re-initializing capture hardware...")
+            sessionQueue.async { [weak self] in
+                guard let self = self else { return }
+                self.videoDeviceInput = nil
+                self.metadataOutput = nil
+                self.videoDataOutput = nil
+                self.configureSession { [weak self] result in
+                    if case .success = result, let self = self, self.isScanningActive {
+                        self.startSession()
+                    }
+                }
+            }
+        } else {
+            sessionQueue.async { [weak self] in
+                guard let self = self, self.isScanningActive else { return }
+                self.startSession()
+            }
+        }
     }
 
     // MARK: - Session Configuration
@@ -58,11 +198,18 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
                 return
             }
 
+            self.telemetryLock.lock()
+            self._telemetry.state = "configuring"
             self.state = .configuring
+            self.telemetryLock.unlock()
 
             guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
                 let errorMsg = "Camera access is not authorized. Please grant camera permission in iPhone Settings."
+                self.telemetryLock.lock()
+                self._telemetry.state = "failed: unauthorized"
+                self._telemetry.lastErrorMessage = errorMsg
                 self.state = .failed(errorMsg)
+                self.telemetryLock.unlock()
                 self.dispatchError(errorMsg)
                 completion?(.failure(NSError(domain: "com.handshake.camera", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
                 return
@@ -77,7 +224,7 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
                 self.captureSession.sessionPreset = .photo
             }
 
-            // 2. Discover physical back camera using modern DiscoverySession (iPhone 16/16e compatible)
+            // 2. Discover physical back camera (iPhone 16/16e compatible)
             let deviceTypes: [AVCaptureDevice.DeviceType] = [
                 .builtInWideAngleCamera,
                 .builtInDualCamera,
@@ -89,17 +236,31 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
                 mediaType: .video,
                 position: .back
             )
-            let device = discovery.devices.first ?? AVCaptureDevice.default(for: .video)
+            let device = discovery.devices.first(where: { $0.deviceType == .builtInWideAngleCamera })
+                ?? discovery.devices.first
+                ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+                ?? AVCaptureDevice.default(for: .video)
 
             guard let camera = device else {
                 self.captureSession.commitConfiguration()
                 let errorMsg = "No physical back camera available on this device."
+                self.telemetryLock.lock()
+                self._telemetry.state = "failed: no camera"
+                self._telemetry.lastErrorMessage = errorMsg
                 self.state = .failed(errorMsg)
+                self.telemetryLock.unlock()
                 self.dispatchError(errorMsg)
                 completion?(.failure(NSError(domain: "com.handshake.camera", code: 2, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
                 return
             }
             self.backCameraDevice = camera
+
+            let dimensions = CMVideoFormatDescriptionGetDimensions(camera.activeFormat.formatDescription)
+            self.telemetryLock.lock()
+            self._telemetry.deviceName = camera.localizedName
+            self._telemetry.devicePosition = "back"
+            self._telemetry.activeFormat = "\(dimensions.width)x\(dimensions.height)"
+            self.telemetryLock.unlock()
 
             // 3. Configure autofocus & autoexposure for fast screen barcode scanning
             do {
@@ -124,10 +285,17 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
                 if self.captureSession.canAddInput(input) {
                     self.captureSession.addInput(input)
                     self.videoDeviceInput = input
+                    self.telemetryLock.lock()
+                    self._telemetry.hasInput = true
+                    self.telemetryLock.unlock()
                 } else {
                     self.captureSession.commitConfiguration()
                     let errorMsg = "Unable to attach camera input to capture session."
+                    self.telemetryLock.lock()
+                    self._telemetry.state = "failed: input attachment"
+                    self._telemetry.lastErrorMessage = errorMsg
                     self.state = .failed(errorMsg)
+                    self.telemetryLock.unlock()
                     self.dispatchError(errorMsg)
                     completion?(.failure(NSError(domain: "com.handshake.camera", code: 3, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
                     return
@@ -135,31 +303,60 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
             } catch {
                 self.captureSession.commitConfiguration()
                 let errorMsg = "Camera hardware input error: \(error.localizedDescription)"
+                self.telemetryLock.lock()
+                self._telemetry.state = "failed: \(error.localizedDescription)"
+                self._telemetry.lastErrorMessage = errorMsg
                 self.state = .failed(errorMsg)
+                self.telemetryLock.unlock()
                 self.dispatchError(errorMsg)
                 completion?(.failure(error))
                 return
             }
 
             // 5. Attach metadata output for QR codes
-            let output = AVCaptureMetadataOutput()
+            let metaOutput = AVCaptureMetadataOutput()
             if let existingOutput = self.metadataOutput {
                 self.captureSession.removeOutput(existingOutput)
             }
-            if self.captureSession.canAddOutput(output) {
-                self.captureSession.addOutput(output)
-                output.setMetadataObjectsDelegate(self, queue: self.metadataQueue)
-                if output.availableMetadataObjectTypes.contains(.qr) {
-                    output.metadataObjectTypes = [.qr]
+            if self.captureSession.canAddOutput(metaOutput) {
+                self.captureSession.addOutput(metaOutput)
+                metaOutput.setMetadataObjectsDelegate(self, queue: self.metadataQueue)
+                if metaOutput.availableMetadataObjectTypes.contains(.qr) {
+                    metaOutput.metadataObjectTypes = [.qr]
                 }
-                self.metadataOutput = output
+                self.metadataOutput = metaOutput
+                self.telemetryLock.lock()
+                self._telemetry.hasMetadataOutput = true
+                self.telemetryLock.unlock()
             } else {
                 self.captureSession.commitConfiguration()
                 let errorMsg = "Unable to attach metadata output for QR scanning."
+                self.telemetryLock.lock()
+                self._telemetry.state = "failed: metadata attachment"
+                self._telemetry.lastErrorMessage = errorMsg
                 self.state = .failed(errorMsg)
+                self.telemetryLock.unlock()
                 self.dispatchError(errorMsg)
                 completion?(.failure(NSError(domain: "com.handshake.camera", code: 4, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
                 return
+            }
+
+            // 6. Attach video data output for non-blocking frame arrival telemetry
+            let vDataOutput = AVCaptureVideoDataOutput()
+            vDataOutput.alwaysDiscardsLateVideoFrames = true
+            vDataOutput.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
+            ]
+            if let existingVideoOutput = self.videoDataOutput {
+                self.captureSession.removeOutput(existingVideoOutput)
+            }
+            if self.captureSession.canAddOutput(vDataOutput) {
+                self.captureSession.addOutput(vDataOutput)
+                vDataOutput.setSampleBufferDelegate(self, queue: self.videoDataQueue)
+                self.videoDataOutput = vDataOutput
+                self.telemetryLock.lock()
+                self._telemetry.hasVideoOutput = true
+                self.telemetryLock.unlock()
             }
 
             self.captureSession.commitConfiguration()
@@ -169,7 +366,12 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
                 meta.metadataObjectTypes = [.qr]
             }
 
+            self.telemetryLock.lock()
+            self._telemetry.state = "configured"
             self.state = .configured
+            self.telemetryLock.unlock()
+
+            print("[CameraTelemetry] Capture session configured successfully: \(self.currentTelemetry)")
             completion?(.success(()))
         }
     }
@@ -192,17 +394,27 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
             }
 
             guard !self.captureSession.isRunning else {
+                self.telemetryLock.lock()
                 self.state = .running
+                self._telemetry.state = "running"
+                self.telemetryLock.unlock()
+                NotificationCenter.default.post(name: .cameraSessionDidStartRunning, object: nil)
                 return
             }
 
             self.captureSession.startRunning()
+            self.telemetryLock.lock()
             self.state = .running
+            self._telemetry.state = "running"
+            self.telemetryLock.unlock()
 
             // Ensure metadataObjectTypes is configured once running
             if let meta = self.metadataOutput, meta.metadataObjectTypes.isEmpty && meta.availableMetadataObjectTypes.contains(.qr) {
                 meta.metadataObjectTypes = [.qr]
             }
+
+            NotificationCenter.default.post(name: .cameraSessionDidStartRunning, object: nil)
+            print("[CameraTelemetry] Camera session started running.")
         }
     }
 
@@ -214,7 +426,11 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
             if self.captureSession.isRunning {
                 self.captureSession.stopRunning()
             }
+            self.telemetryLock.lock()
             self.state = .stopped
+            self._telemetry.state = "stopped"
+            self.telemetryLock.unlock()
+            print("[CameraTelemetry] Camera session stopped.")
         }
     }
 
@@ -255,6 +471,31 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
         }
     }
 
+    // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate (Frame Telemetry)
+
+    public func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        // Non-blocking telemetry only. Do not write photos or frames to disk.
+        let now = Date()
+        telemetryLock.lock()
+        _telemetry.frameCount &+= 1
+        let count = _telemetry.frameCount
+        if _telemetry.firstFrameReceivedAt == nil {
+            _telemetry.firstFrameReceivedAt = now
+        }
+        _telemetry.lastFrameReceivedAt = now
+        telemetryLock.unlock()
+
+        if count == 1 {
+            print("[CameraTelemetry] First hardware video frame arrived at \(now). Hardware pipeline is actively streaming.")
+        } else if count % 150 == 0 {
+            print("[CameraTelemetry] Heartbeat: \(count) video frames delivered from \(_telemetry.deviceName).")
+        }
+    }
+
     // MARK: - AVCaptureMetadataOutputObjectsDelegate
 
     public func metadataOutput(
@@ -270,7 +511,7 @@ public final class CameraManager: NSObject, AVCaptureMetadataOutputObjectsDelega
             return
         }
 
-        // Requirement 8: Validate QR contents before forwarding them
+        // Validate QR contents before forwarding them
         guard stringValue.hasPrefix("handshake://pair") else {
             // Not a Handshake pairing QR code, ignore non-handshake codes
             return

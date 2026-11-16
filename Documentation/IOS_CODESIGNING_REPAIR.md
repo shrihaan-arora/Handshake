@@ -3,7 +3,7 @@
 **Date:** 2026-11-15  
 **Auditor:** Principal Apple-Platform Software Architect & Application Security Engineer  
 **Target Application:** `Handshake-iOS.app` (`com.shrihaan.handshake.ios`)  
-**Target Hardware:** iPhone 16e (`iPhone17,5`, UDID: `00008140-00042C3902F2801C`, iOS 27.0 `24A437`)  
+**Target Hardware:** iPhone 16e (`iPhone17,5`, UDID: `[REDACTED_IPHONE_UDID]`, iOS 27.0 `24A437`)  
 **Status:** **REPAIRED & INSTALLED ON PHYSICAL DEVICE**
 
 ---
@@ -72,7 +72,7 @@ These flags had been placed into the project during initial Phase 1 headless dev
 
 ## 4. `codesign` Verification Output
 
-Following a clean build for physical destination `id=00008140-00042C3902F2801C`:
+Following a clean build for physical destination `id=[REDACTED_IPHONE_UDID]`:
 
 ### 4.1 Detailed Signature Inspection (`codesign -dv --verbose=4`):
 ```text
@@ -95,7 +95,7 @@ Executable Segment flags=0x11
 Page size=16384
 CDHash=184dd568a461b5a04fcfcd8bd4238245dad16945
 Signature size=4783
-Authority=Apple Development: 917800967120 (UX2THUQYT3)
+Authority=Apple Development: [REDACTED_SIGNING_IDENTITY]
 Authority=Apple Worldwide Developer Relations Certification Authority
 Authority=Apple Root CA
 Signed Time=15 Nov 2026 at 7:01:49 AM
@@ -124,9 +124,9 @@ The embedded provisioning profile (`embedded.mobileprovision`) was unpacked and 
 - **Profile UUID:** `e4f145e4-039a-48b9-902b-6fdcdc5e92ba`
 - **Team Identifier:** `DW8DPY9ALB` (`Shrihaan Arora`)
 - **Application Identifier:** `DW8DPY9ALB.com.shrihaan.handshake.ios`
-- **Provisioned Device:** `00008140-00042C3902F2801C` (Matches target iPhone 16e hardware UDID)
+- **Provisioned Device:** `[REDACTED_IPHONE_UDID]` (Matches target iPhone 16e hardware UDID)
 - **Keychain Access Groups:** `DW8DPY9ALB.*`
-- **Developer Certificate:** Matches `Apple Development: 917800967120 (UX2THUQYT3)` in Keychain.
+- **Developer Certificate:** Matches `Apple Development: [REDACTED_SIGNING_IDENTITY]` in Keychain.
 
 ---
 
@@ -136,7 +136,7 @@ Installation was performed directly to the connected iPhone 16e using Apple's of
 
 ```bash
 xcrun devicectl device install app \
-    --device 00008140-00042C3902F2801C \
+    --device [REDACTED_IPHONE_UDID] \
     /Users/SHREEHANARORA/Library/Developer/Xcode/DerivedData/Handshake-ckokmlywszwrijdicsxhwomkkicw/Build/Products/Debug-iphoneos/Handshake-iOS.app
 ```
 
@@ -169,5 +169,5 @@ inadequate entitlements or its profile has not been explicitly trusted by the us
 This is a standard Apple iOS security requirement for free developer sideloading. To launch the app:
 1. On your iPhone 16e screen, open **Settings $\to$ General $\to$ VPN & Device Management**.
 2. Under **Developer App**, tap **Shrihaan Arora**.
-3. Tap **Trust "Apple Development: 917800967120 (UX2THUQYT3)"** and confirm **Trust**.
+3. Tap **Trust "Apple Development: [REDACTED_SIGNING_IDENTITY]"** and confirm **Trust**.
 4. Tap the **Handshake** icon on your iPhone home screen to launch!

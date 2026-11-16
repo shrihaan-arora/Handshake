@@ -154,7 +154,7 @@ END-TO-END COMMAND DISPATCH BENCHMARK:
 ## 5. Physical Device Deployment Status
 
 - **Host Mac:** MacBook Air (Apple M4, macOS 27.2) — companion application running.
-- **Physical Device:** iPhone 16e (`00008140-00042C3902F2801C`).
+- **Physical Device:** iPhone 16e (`[REDACTED_IPHONE_UDID]`).
 - **Device State:** Connected via USB-C; device is currently locked / passcoded (`CoreDeviceError 4016: The device is not able to fulfill the requested usage assertion requirements`).
 - **Physical Acceptance Status:** **AWAITING USER TESTING** (user must unlock iPhone with passcode to deploy app bundle via `xcrun devicectl device install app`).
 - **Zero Simulation Disclosure:** In strict accordance with engineering honesty guidelines, physical-device pairing confirmation is classified as `AWAITING USER TESTING` until the unlocked device accepts deployment.

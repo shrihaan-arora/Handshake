@@ -73,6 +73,11 @@ ID_PKG_PRODUCT_DEP_MAC = make_id("PKG_DEP_MAC")
 ID_BUILDFILE_PKG_IOS = make_id("BUILDFILE_PKG_IOS")
 ID_BUILDFILE_PKG_MAC = make_id("BUILDFILE_PKG_MAC")
 
+ID_IOS_ASSETS_REF = make_id("ASSETS_REF_IOS")
+ID_IOS_ASSETS_BUILDFILE = make_id("ASSETS_BUILDFILE_IOS")
+ID_MAC_ASSETS_REF = make_id("ASSETS_REF_MAC")
+ID_MAC_ASSETS_BUILDFILE = make_id("ASSETS_BUILDFILE_MAC")
+
 ID_PROJECT_CONFIG_LIST = make_id("PROJECT_CONFIG_LIST")
 ID_PROJECT_CONFIG_DEBUG = make_id("PROJECT_CONFIG_DEBUG")
 ID_PROJECT_CONFIG_RELEASE = make_id("PROJECT_CONFIG_RELEASE")
@@ -114,6 +119,12 @@ for f, (fileref_id, buildfile_id) in mac_file_ids.items():
 # Products
 pbx_file_refs.append(f"\t\t{ID_IOS_APP_PRODUCT} /* Handshake-iOS.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = \"Handshake-iOS.app\"; sourceTree = BUILT_PRODUCTS_DIR; }};")
 pbx_file_refs.append(f"\t\t{ID_MAC_APP_PRODUCT} /* Handshake-macOS.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = \"Handshake-macOS.app\"; sourceTree = BUILT_PRODUCTS_DIR; }};")
+
+# Asset Catalogs
+pbx_file_refs.append(f"\t\t{ID_IOS_ASSETS_REF} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = \"Applications/Handshake-iOS/Assets.xcassets\"; sourceTree = \"<group>\"; }};")
+pbx_file_refs.append(f"\t\t{ID_MAC_ASSETS_REF} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = \"Applications/Handshake-macOS/Assets.xcassets\"; sourceTree = \"<group>\"; }};")
+pbx_build_files.append(f"\t\t{ID_IOS_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {ID_IOS_ASSETS_REF} /* Assets.xcassets */; }};")
+pbx_build_files.append(f"\t\t{ID_MAC_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {ID_MAC_ASSETS_REF} /* Assets.xcassets */; }};")
 
 # Write Scheme files
 ios_scheme = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -233,8 +244,13 @@ with open(os.path.join(SHAREDDATA_DIR, "Handshake-macOS.xcscheme"), "w") as f:
     f.write(macos_scheme)
 
 # Construct PBXProject content
-ios_children = "\n".join([f"\t\t\t\t{fileref_id} /* {os.path.basename(f)} */," for f, (fileref_id, _) in ios_file_ids.items()])
-mac_children = "\n".join([f"\t\t\t\t{fileref_id} /* {os.path.basename(f)} */," for f, (fileref_id, _) in mac_file_ids.items()])
+ios_children_list = [f"\t\t\t\t{fileref_id} /* {os.path.basename(f)} */," for f, (fileref_id, _) in ios_file_ids.items()]
+ios_children_list.append(f"\t\t\t\t{ID_IOS_ASSETS_REF} /* Assets.xcassets */,")
+ios_children = "\n".join(ios_children_list)
+
+mac_children_list = [f"\t\t\t\t{fileref_id} /* {os.path.basename(f)} */," for f, (fileref_id, _) in mac_file_ids.items()]
+mac_children_list.append(f"\t\t\t\t{ID_MAC_ASSETS_REF} /* Assets.xcassets */,")
+mac_children = "\n".join(mac_children_list)
 
 pbxproj = f"""// !$*UTF8*$!
 {{
@@ -404,6 +420,7 @@ pbxproj = f"""// !$*UTF8*$!
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				{ID_IOS_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		}};
@@ -411,6 +428,7 @@ pbxproj = f"""// !$*UTF8*$!
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				{ID_MAC_ASSETS_BUILDFILE} /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		}};

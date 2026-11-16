@@ -42,7 +42,7 @@
 - **2026-11-15 05:03:00:** Refactored `MacLockEngine.swift`: Added `ScreenLockGracePeriod`, query to Apple's `/usr/sbin/sysadminctl -screenLock status`, and fail-closed security. Added persistent setup warning banner in `MacDashboardView.swift`.
 - **2026-11-15 05:04:00:** Implemented two-stage sleep acknowledgment handshake via `CommandReceipt.swift` across `HandshakeServer.swift` and `HandshakeClient.swift` with 2.0s bounded fallback.
 - **2026-11-15 05:06:00:** Corrected transport honesty disclosures (Application-level AEAD over TCP, not TLS) and dynamic `isHardwareBacked` badging in `SecurityShieldBadge.swift` and `SecurityAuditView.swift`.
-- **2026-11-15 05:07:00:** Audited physical iPhone 16e (`00008140-00042C3902F2801C`). Compilation for physical arm64 succeeded; physical installation blocked by expired personal provisioning profile (`0xe800801c`), strictly classified as `BLOCKED (Deployment) / PASS (Compilation)`.
+- **2026-11-15 05:07:00:** Audited physical iPhone 16e (`[REDACTED_IPHONE_UDID]`). Compilation for physical arm64 succeeded; physical installation blocked by expired personal provisioning profile (`0xe800801c`), strictly classified as `BLOCKED (Deployment) / PASS (Compilation)`.
 - **2026-11-15 05:08:00:** Added `CryptoNegativeTests.swift` (adversarial bit flips, identity spoofing, wrong keys, clock skew, revoked device rejection, two-stage sleep receipt). All 85 unit tests passing with zero failures in 1.459s.
 - **2026-11-15 05:11:00:** Authored all 5 new documentation deliverables and updated all tracking documents (commit `087009a`).
 - **2026-11-15 05:30:00:** Commenced Secure Local Communication Engineering Mission on branch `mission/secure-local-communication`.
