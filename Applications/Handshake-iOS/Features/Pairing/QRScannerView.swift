@@ -2,36 +2,40 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
-/// Native UIView hosting AVCaptureVideoPreviewLayer directly as its backing root layer.
-/// By overriding layerClass, the preview layer is guaranteed to match the view's frame, bounds,
-/// and transform without manual sublayer synchronization or race conditions during SwiftUI layout passes.
+/// Native UIView hosting AVCaptureVideoPreviewLayer as an explicitly managed sublayer.
+/// Guarantees that previewLayer bounds, orientation, and session synchronization are maintained
+/// across UIKit layout passes, window attachment, and SwiftUI view hierarchy updates.
 public final class CameraPreviewView: UIView {
-    public override class var layerClass: AnyClass {
-        AVCaptureVideoPreviewLayer.self
-    }
+    public let previewLayer: AVCaptureVideoPreviewLayer
 
-    public var previewLayer: AVCaptureVideoPreviewLayer {
-        layer as! AVCaptureVideoPreviewLayer
+    public init(session: AVCaptureSession) {
+        self.previewLayer = AVCaptureVideoPreviewLayer(session: session)
+        super.init(frame: .zero)
+        setupView()
     }
 
     public override init(frame: CGRect) {
+        self.previewLayer = AVCaptureVideoPreviewLayer(session: CameraManager.shared.captureSession)
         super.init(frame: frame)
         setupView()
     }
 
     public required init?(coder: NSCoder) {
+        self.previewLayer = AVCaptureVideoPreviewLayer(session: CameraManager.shared.captureSession)
         super.init(coder: coder)
         setupView()
     }
 
     private func setupView() {
-        backgroundColor = .clear
+        backgroundColor = .black
         previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.backgroundColor = UIColor.black.cgColor
+        layer.addSublayer(previewLayer)
 
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleSessionDidStartRunning),
-            name: .cameraSessionDidStartRunning,
+            name: .AVCaptureSessionDidStartRunning,
             object: nil
         )
     }
@@ -42,20 +46,44 @@ public final class CameraPreviewView: UIView {
 
     @objc private func handleSessionDidStartRunning() {
         DispatchQueue.main.async { [weak self] in
-            self?.updateOrientation()
+            guard let self = self else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            self.previewLayer.frame = self.bounds
+            CATransaction.commit()
+            self.updateOrientation()
         }
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        previewLayer.frame = bounds
+        CATransaction.commit()
         updateOrientation()
     }
 
-    /// Safely binds or updates the AVCaptureSession on the backing preview layer.
+    public override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            previewLayer.frame = bounds
+            CATransaction.commit()
+            updateOrientation()
+        }
+    }
+
+    /// Safely binds or updates the AVCaptureSession on the preview layer.
     public func bindSession(_ session: AVCaptureSession) {
         if previewLayer.session !== session {
             previewLayer.session = session
         }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        previewLayer.frame = bounds
+        CATransaction.commit()
         updateOrientation()
     }
 
@@ -63,8 +91,8 @@ public final class CameraPreviewView: UIView {
     public func updateOrientation() {
         guard let connection = previewLayer.connection else { return }
 
+        #if os(iOS)
         if connection.isVideoOrientationSupported {
-            #if os(iOS)
             let orientation = window?.windowScene?.interfaceOrientation ?? .portrait
             let targetOrientation: AVCaptureVideoOrientation
             switch orientation {
@@ -81,12 +109,12 @@ public final class CameraPreviewView: UIView {
             if connection.videoOrientation != targetOrientation {
                 connection.videoOrientation = targetOrientation
             }
-            #endif
         }
 
         if !connection.isEnabled {
             connection.isEnabled = true
         }
+        #endif
     }
 }
 
@@ -111,15 +139,12 @@ public struct QRScannerView: UIViewRepresentable {
     }
 
     public func makeUIView(context: Context) -> CameraPreviewView {
-        let previewView = CameraPreviewView()
         let manager = CameraManager.shared
+        let previewView = CameraPreviewView(session: manager.captureSession)
 
         manager.onCodeScanned = onCodeScanned
         manager.onError = onError
         manager.isScanningActive = isScanningActive
-
-        // Bind capture session to the backing preview layer
-        previewView.bindSession(manager.captureSession)
 
         // Start session asynchronously on dedicated serial queue
         manager.startSession()
