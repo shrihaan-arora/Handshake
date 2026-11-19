@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import CryptoKit
+@preconcurrency import CoreBluetooth
 
 /// Local peer-to-peer TCP client for the iPhone application.
 /// Connects to a paired Mac companion on demand, issues signed command envelopes,
@@ -58,6 +59,7 @@ public final class HandshakeClient: Sendable {
 
         let browserParams = NWParameters()
         browserParams.includePeerToPeer = true
+        browserParams.prohibitedInterfaceTypes = [.cellular]
         let browser = NWBrowser(for: .bonjour(type: serviceType, domain: nil), using: browserParams)
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -172,62 +174,94 @@ public final class HandshakeClient: Sendable {
             throw PairingError.invitationExpired
         }
 
-        // 1. Dual-path endpoint resolution (Direct host probe + Bonjour discovery fallback)
         onStageChange?(.resolvingHost(hostName: invitation.hostIdentity.displayName))
-        var targetEndpoint: NWEndpoint? = nil
 
+        // Candidate 1: Direct endpoint from QR code
         if let host = invitation.hostAddress, !host.isEmpty,
            let nwPort = NWEndpoint.Port(rawValue: invitation.localPort) {
             let directEndpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: nwPort)
-            let isReachable = await withCheckedContinuation { cont in
-                let probeLock = ResumeLock()
-                let probeQueue = DispatchQueue(label: "com.handshake.probe", qos: .userInitiated)
-                let probeParams = NWParameters.tcp
-                probeParams.includePeerToPeer = true
-                let probeConn = NWConnection(to: directEndpoint, using: probeParams)
-
-                probeQueue.asyncAfter(deadline: .now() + 1.5) {
-                    if probeLock.takeResume() {
-                        probeConn.cancel()
-                        cont.resume(returning: false)
-                    }
-                }
-                probeConn.stateUpdateHandler = { state in
-                    if state == .ready {
-                        if probeLock.takeResume() {
-                            probeConn.cancel()
-                            cont.resume(returning: true)
-                        }
-                    } else if case .failed = state {
-                        if probeLock.takeResume() {
-                            probeConn.cancel()
-                            cont.resume(returning: false)
-                        }
-                    }
-                }
-                probeConn.start(queue: probeQueue)
-            }
-            if isReachable {
-                targetEndpoint = directEndpoint
+            do {
+                print("[HandshakeClient] Attempting direct TCP pairing connection to \(host):\(invitation.localPort)...")
+                return try await connectAndPair(
+                    to: directEndpoint,
+                    invitation: invitation,
+                    trustStore: trustStore,
+                    timeoutSeconds: 6.0,
+                    onStageChange: onStageChange,
+                    onSASDerived: onSASDerived
+                )
+            } catch {
+                print("[HandshakeClient] Direct TCP connection to \(host):\(invitation.localPort) failed: \(error.localizedDescription). Trying Bonjour discovery...")
             }
         }
 
-        if targetEndpoint == nil {
-            let (endpoint, _) = try await discoverMac(
-                serviceType: "_handshake._tcp",
-                targetPeer: invitation.hostIdentity,
-                timeoutSeconds: 8.0
-            )
-            targetEndpoint = endpoint
+        // Candidate 2: Bonjour discovery fallback
+        guard !invitation.isExpired(skewTolerance: 30.0) else {
+            let msg = "Pairing invitation has expired. Please display a fresh pairing QR code on your Mac."
+            onStageChange?(.pairingFailed(reason: msg))
+            throw PairingError.invitationExpired
         }
 
-        guard let endpoint = targetEndpoint else {
-            let reason = "Could not discover '\(invitation.hostIdentity.displayName)' on local Wi-Fi. Verify both devices are on the same network."
-            onStageChange?(.pairingFailed(reason: reason))
-            throw ClientError.macNotFound
-        }
+        let (bonjourEndpoint, _) = try await discoverMac(
+            serviceType: "_handshake._tcp",
+            targetPeer: invitation.hostIdentity,
+            timeoutSeconds: 6.0
+        )
 
-        // 2. Establish local TCP connection with bounded timeout
+        return try await connectAndPair(
+            to: bonjourEndpoint,
+            invitation: invitation,
+            trustStore: trustStore,
+            timeoutSeconds: 10.0,
+            onStageChange: onStageChange,
+            onSASDerived: onSASDerived
+        )
+    }
+
+    // MARK: - Bluetooth LE pairing transport
+
+    /// Scans for nearby Macs advertising the Handshake GATT service over Bluetooth LE.
+    public func scanForNearbyBLEHosts(
+        timeoutSeconds: TimeInterval = 6.0,
+        onDiscovered: @escaping @Sendable (DiscoveredBLEHost) -> Void
+    ) async throws {
+        let bleClient = BLECentralClient(clientIdentity: clientIdentity, sequenceCounter: sequenceCounter)
+        try await bleClient.scanForNearbyHosts(timeoutSeconds: timeoutSeconds, onDiscovered: onDiscovered)
+    }
+
+    /// Carries a QR-validated invitation over Bluetooth LE when TCP is unavailable.
+    /// The invitation is mandatory: BLE proximity and advertisements are never credentials.
+    public func pairOverBLE(
+        peripheral: CBPeripheral,
+        invitation: PairingInvitation,
+        trustStore: TrustStore,
+        timeoutSeconds: TimeInterval = 10.0,
+        onStageChange: (@Sendable (PairingStage) -> Void)? = nil,
+        onSASDerived: @escaping @Sendable (String) async -> Bool
+    ) async throws -> TrustRecord {
+        let bleClient = BLECentralClient(clientIdentity: clientIdentity, sequenceCounter: sequenceCounter)
+        defer {
+            bleClient.disconnect()
+        }
+        return try await bleClient.pairOverBLE(
+            peripheral: peripheral,
+            invitation: invitation,
+            trustStore: trustStore,
+            timeoutSeconds: timeoutSeconds,
+            onStageChange: onStageChange,
+            onSASDerived: onSASDerived
+        )
+    }
+
+    /// Connects to a resolved endpoint and executes the bilateral cryptographic pairing protocol.
+    private func connectAndPair(
+        to endpoint: NWEndpoint,
+        invitation: PairingInvitation,
+        trustStore: TrustStore,
+        timeoutSeconds: TimeInterval,
+        onStageChange: (@Sendable (PairingStage) -> Void)?,
+        onSASDerived: @escaping @Sendable (String) async -> Bool
+    ) async throws -> TrustRecord {
         let endpointDescription: String
         switch endpoint {
         case .hostPort(let host, let port):
@@ -243,17 +277,19 @@ public final class HandshakeClient: Sendable {
         tcpOptions.enableKeepalive = false
         let params = NWParameters(tls: nil, tcp: tcpOptions)
         params.includePeerToPeer = true
+        params.prohibitedInterfaceTypes = [.cellular]
         let connection = NWConnection(to: endpoint, using: params)
 
         return try await withCheckedThrowingContinuation { continuation in
             let queue = DispatchQueue(label: "com.handshake.client.pairing", qos: .userInitiated)
             let resumeState = ResumeLock()
 
-            // Bounded connection timer (10s)
-            queue.asyncAfter(deadline: .now() + 10.0) {
+            // Bounded connection timer
+            queue.asyncAfter(deadline: .now() + timeoutSeconds) {
                 if resumeState.takeResume() {
                     connection.cancel()
-                    let msg = "Connection timed out connecting to \(invitation.hostIdentity.displayName)."
+                    let msg = "Connection timed out connecting to \(endpointDescription)."
+                    print("[HandshakeClient] \(msg)")
                     onStageChange?(.pairingFailed(reason: msg))
                     continuation.resume(throwing: ClientError.timeout)
                 }
@@ -261,7 +297,18 @@ public final class HandshakeClient: Sendable {
 
             connection.stateUpdateHandler = { state in
                 switch state {
+                case .setup:
+                    print("[HandshakeClient] Socket state: .setup for \(endpointDescription)")
+
+                case .preparing:
+                    print("[HandshakeClient] Socket state: .preparing for \(endpointDescription)")
+
+                case .waiting(let error):
+                    let pathDesc = connection.currentPath.map { "\($0.status), interfaces: \($0.availableInterfaces.map(\.name))" } ?? "no path"
+                    print("[HandshakeClient] Socket state: .waiting (\(error.localizedDescription)), path: [\(pathDesc)]")
+
                 case .ready:
+                    print("[HandshakeClient] Socket state: .ready for \(endpointDescription). Beginning pairing handshake.")
                     Task {
                         do {
                             // 3. Initialize ClientPairingSession
@@ -345,13 +392,18 @@ public final class HandshakeClient: Sendable {
                     }
 
                 case .failed(let error):
+                    print("[HandshakeClient] Socket state: .failed (\(error.localizedDescription)) for \(endpointDescription)")
+                    connection.cancel()
                     if resumeState.takeResume() {
                         let msg = "Network connection failed: \(error.localizedDescription)"
                         onStageChange?(.pairingFailed(reason: msg))
                         continuation.resume(throwing: ClientError.connectionFailed(error.localizedDescription))
                     }
 
-                default:
+                case .cancelled:
+                    print("[HandshakeClient] Socket state: .cancelled for \(endpointDescription)")
+
+                @unknown default:
                     break
                 }
             }
@@ -445,6 +497,84 @@ public final class HandshakeClient: Sendable {
         )
     }
 
+    // MARK: - Dual-Transport Automatic Fallback
+
+    /// Executes an authenticated command using local Wi-Fi first, falling back automatically
+    /// to Bluetooth Low Energy when the devices are on different Wi-Fi networks or local discovery times out.
+    public func executeCommandWithFallback(
+        _ commandType: CommandType,
+        to targetMac: DeviceIdentity,
+        preSharedKeyHex: String? = nil,
+        masterPSK: SymmetricKey? = nil,
+        useFreshSession: Bool = true,
+        wiFiTimeoutSeconds: TimeInterval = 2.5,
+        bleTimeoutSeconds: TimeInterval = 5.0,
+        onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
+    ) async throws -> (acknowledgment: CommandAcknowledgment, transport: TransportType) {
+        // 1. Preferred local TCP transport
+        onStateChange?(.connecting(transport: .localWiFi))
+        do {
+            let (endpoint, _) = try await discoverMac(
+                serviceType: "_handshake._tcp",
+                targetPeer: targetMac,
+                timeoutSeconds: wiFiTimeoutSeconds,
+                onStateChange: onStateChange
+            )
+            let ack = try await sendCommand(
+                commandType,
+                to: endpoint,
+                trustedHostPublicKeyHex: targetMac.publicKeyHex,
+                preSharedKeyHex: preSharedKeyHex,
+                masterPSK: masterPSK,
+                useFreshSession: useFreshSession,
+                onStateChange: onStateChange
+            )
+            return (ack, .localWiFi)
+        } catch let error as ClientError {
+            // Only an unreachable TCP transport may fall back to BLE. A trusted
+            // peer rejection or an invalid signed response is diagnostic, not a
+            // discovery failure, and must not be reported as "Mac Unavailable".
+            switch error {
+            case .macNotFound, .timeout, .connectionFailed:
+                break
+            case .invalidAcknowledgment, .commandRejected, .executionFailed:
+                throw error
+            }
+        } catch {
+            throw error
+        }
+
+        // 2. Automatic Bluetooth LE Fallback
+        onStateChange?(.connecting(transport: .bluetoothLE))
+        let bleClient = BLECentralClient(clientIdentity: clientIdentity, sequenceCounter: sequenceCounter)
+        defer {
+            bleClient.disconnect()
+        }
+
+        do {
+            let peripheral = try await bleClient.discoverAndConnect(
+                targetPeerPublicKeyHex: targetMac.publicKeyHex,
+                timeoutSeconds: bleTimeoutSeconds
+            )
+            let ack = try await bleClient.sendCommand(
+                commandType,
+                to: peripheral,
+                trustedHost: targetMac,
+                preSharedKeyHex: preSharedKeyHex,
+                masterPSK: masterPSK,
+                useFreshSession: useFreshSession,
+                onStateChange: onStateChange
+            )
+            return (ack, .bluetoothLE)
+        } catch let error as ClientError {
+            throw error
+        } catch {
+            let reason = "Wi-Fi was unavailable and BLE connection failed: \(error.localizedDescription)"
+            onStateChange?(.connectionFailed(reason: reason))
+            throw ClientError.connectionFailed(reason)
+        }
+    }
+
     /// Transmits an authenticated command to the specified Mac endpoint.
     /// Encrypts, signs, transmits, awaits verified acknowledgment, and releases the connection.
     public func sendCommand(
@@ -452,10 +582,15 @@ public final class HandshakeClient: Sendable {
         to endpoint: NWEndpoint,
         trustedHostPublicKeyHex: String,
         preSharedKeyHex: String? = nil,
+        masterPSK: SymmetricKey? = nil,
         useFreshSession: Bool = true,
         onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
     ) async throws -> CommandAcknowledgment {
-        let connection = NWConnection(to: endpoint, using: .tcp)
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.enableKeepalive = false
+        let params = NWParameters(tls: nil, tcp: tcpOptions)
+        params.prohibitedInterfaceTypes = [.cellular]
+        let connection = NWConnection(to: endpoint, using: params)
         let queue = DispatchQueue(label: "com.handshake.client.dispatch", qos: .userInitiated)
 
         // Ensure connection is canceled and released upon exit
@@ -473,26 +608,32 @@ public final class HandshakeClient: Sendable {
         let nonceSalt: Data?
 
         if useFreshSession {
-            let masterPSK: SymmetricKey?
-            if let hex = preSharedKeyHex, let data = Data(hexString: hex), data.count == 32 {
-                masterPSK = SymmetricKey(data: data)
+            let resolvedMasterPSK: SymmetricKey?
+            if let masterPSK {
+                resolvedMasterPSK = masterPSK
+            } else if let hex = preSharedKeyHex, let data = Data(hexString: hex), data.count == 32 {
+                resolvedMasterPSK = SymmetricKey(data: data)
             } else {
-                masterPSK = nil
+                resolvedMasterPSK = nil
             }
             let session = try await performSessionHandshake(
                 connection: connection,
                 trustedHostPublicKeyHex: trustedHostPublicKeyHex,
-                masterPSK: masterPSK
+                masterPSK: resolvedMasterPSK
             )
             sessionKey = session.clientToHostKey
             nonceSalt = session.clientToHostNonceSalt
             onStateChange?(.secureConnectionEstablished(peer: session.peer))
         } else {
-            sessionKey = SecureChannel.resolveSessionKey(
-                preSharedKeyHex: preSharedKeyHex,
-                fallbackPublicKeyHex: clientIdentity.identity.publicKeyHex,
-                role: .clientToHost
-            )
+            do {
+                sessionKey = try SecureChannel.resolveSessionKey(
+                    preSharedKeyHex: preSharedKeyHex,
+                    role: .clientToHost
+                )
+            } catch {
+                onStateChange?(.commandFailed(reason: "Pre-shared key missing or invalid"))
+                throw HandshakeClient.ClientError.connectionFailed("Missing or invalid pre-shared key")
+            }
             nonceSalt = nil
         }
 
@@ -538,7 +679,7 @@ public final class HandshakeClient: Sendable {
         }
 
         // 8. Two-Stage Sleep Handshake:
-        if commandType == .sleep && (ack.status == .executed || ack.status == .received) {
+        if commandType == .sleep && ack.status == .accepted {
             let receiptPlaceholder = CommandReceipt(
                 commandId: commandMessage.id,
                 clientIdentity: clientIdentity.identity
@@ -556,7 +697,7 @@ public final class HandshakeClient: Sendable {
 
         // 9. Check execution status
         switch ack.status {
-        case .received, .executed:
+        case .received, .authenticated, .authorized, .accepted, .sleepRequestIssued, .physicalSleepObserved, .executed:
             onStateChange?(.commandCompleted(commandType))
             onStateChange?(.commandAccepted(commandType))
             return ack
@@ -579,7 +720,11 @@ public final class HandshakeClient: Sendable {
         timeoutSeconds: TimeInterval = 5.0,
         onStateChange: (@Sendable (ConnectionState) -> Void)? = nil
     ) async throws -> CommandSession {
-        let connection = NWConnection(to: endpoint, using: .tcp)
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.enableKeepalive = false
+        let params = NWParameters(tls: nil, tcp: tcpOptions)
+        params.prohibitedInterfaceTypes = [.cellular]
+        let connection = NWConnection(to: endpoint, using: params)
         let queue = DispatchQueue(label: "com.handshake.client.session.\(UUID().uuidString)", qos: .userInitiated)
 
         onStateChange?(.connectingSecurely)
@@ -703,11 +848,15 @@ public final class CommandSession: Sendable {
             sessionKey = session.clientToHostKey
             nonceSalt = session.clientToHostNonceSalt
         } else {
-            sessionKey = SecureChannel.resolveSessionKey(
-                preSharedKeyHex: preSharedKeyHex,
-                fallbackPublicKeyHex: clientIdentity.identity.publicKeyHex,
-                role: .clientToHost
-            )
+            do {
+                sessionKey = try SecureChannel.resolveSessionKey(
+                    preSharedKeyHex: preSharedKeyHex,
+                    role: .clientToHost
+                )
+            } catch {
+                onStateChange?(.commandFailed(reason: "Pre-shared key missing or invalid"))
+                throw HandshakeClient.ClientError.connectionFailed("Missing or invalid pre-shared key")
+            }
             nonceSalt = nil
         }
 
@@ -739,7 +888,7 @@ public final class CommandSession: Sendable {
             throw HandshakeClient.ClientError.invalidAcknowledgment
         }
 
-        if commandType == .sleep && (ack.status == .executed || ack.status == .received) {
+        if commandType == .sleep && ack.status == .accepted {
             let receiptPlaceholder = CommandReceipt(commandId: commandMessage.id, clientIdentity: clientIdentity.identity)
             let sig = try clientIdentity.sign(data: receiptPlaceholder.signablePayload)
             let signedReceipt = CommandReceipt(
@@ -753,7 +902,7 @@ public final class CommandSession: Sendable {
         }
 
         switch ack.status {
-        case .received, .executed:
+        case .received, .authenticated, .authorized, .accepted, .sleepRequestIssued, .physicalSleepObserved, .executed:
             onStateChange?(.commandCompleted(commandType))
             onStateChange?(.commandAccepted(commandType))
             return ack

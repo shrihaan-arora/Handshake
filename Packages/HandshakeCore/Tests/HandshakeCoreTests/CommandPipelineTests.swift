@@ -149,7 +149,7 @@ final class CommandPipelineTests: XCTestCase {
             executionHandler: { message, peer in
                 XCTAssertEqual(message.command, .sleep)
                 sleepPrepared.value = true
-                return .executed
+                return .accepted
             }
         )
         #else
@@ -161,7 +161,7 @@ final class CommandPipelineTests: XCTestCase {
             executionHandler: { message, peer in
                 XCTAssertEqual(message.command, .sleep)
                 sleepPrepared.value = true
-                return .executed
+                return .accepted
             }
         )
         #endif
@@ -180,7 +180,7 @@ final class CommandPipelineTests: XCTestCase {
         )
 
         XCTAssertTrue(sleepPrepared.value)
-        XCTAssertEqual(ack.status, .executed)
+        XCTAssertEqual(ack.status, .accepted)
 
         #if os(macOS)
         // Wait for server to process receipt and trigger sleep
@@ -266,9 +266,8 @@ final class CommandPipelineTests: XCTestCase {
         try await server.start()
         defer { Task { await server.stop() } }
 
-        let sessionKey = SecureChannel.resolveSessionKey(
+        let sessionKey = try SecureChannel.resolveSessionKey(
             preSharedKeyHex: pskHex,
-            fallbackPublicKeyHex: client.identity.publicKeyHex,
             role: .clientToHost
         )
 

@@ -9,11 +9,22 @@ public final class DashboardViewModel: ObservableObject {
     @Published public var pairedMac: DeviceIdentity?
     @Published public var securityStatus: SecurityStatus = .unconfigured
     @Published public var isPairingSheetPresented: Bool = false
+    @Published public var isBLEPairingSheetPresented: Bool = false
+    @Published public var isConnectionDiagnosticsPresented: Bool = false
     @Published public var isSecurityAuditPresented: Bool = false
     @Published public var isForgetConfirmationPresented: Bool = false
     @Published public var alertMessage: String? = nil
     @Published public var alertTitle: String = "Handshake"
     @Published public var isExecutingCommand: Bool = false
+
+    // MARK: - Bluetooth LE First-Time Pairing State
+    @Published public var discoveredBLEHosts: [DiscoveredBLEHost] = []
+    @Published public var isScanningBLE: Bool = false
+    @Published public var blePairingStage: PairingStage = .notStarted
+    @Published public var blePairingError: String? = nil
+    @Published public var bleDerivedSAS: String? = nil
+    @Published public var selectedBLEHost: DiscoveredBLEHost? = nil
+    private var bleSASApprovalContinuation: CheckedContinuation<Bool, Never>? = nil
 
     public enum CommandExecutionStage: Equatable, Sendable {
         case idle
@@ -53,6 +64,9 @@ public final class DashboardViewModel: ObservableObject {
         self.trustStore = TrustStore(storageAccount: "com.shrihaan.handshake.ios.truststore")
         self.connectionState = .disconnected
         self.securityStatus = .unconfigured
+        if ProcessInfo.processInfo.arguments.contains("-openScanner") {
+            self.isPairingSheetPresented = true
+        }
 
         Task {
             await initializeIdentityAndTrust()
@@ -113,7 +127,7 @@ public final class DashboardViewModel: ObservableObject {
 
     public func handleSleepMacTapped() {
         guard !isExecutingCommand else { return }
-        guard let mac = pairedMac, let client = client else {
+        guard let mac = pairedMac, let client = client, let trustRecord = activeTrustRecord else {
             alertTitle = "No Paired Mac"
             alertMessage = "Please pair with your Mac before sending commands."
             return
@@ -138,61 +152,49 @@ public final class DashboardViewModel: ObservableObject {
             }
 
             do {
-                // 1. Discover Mac via local Bonjour targeting peer
-                let (endpoint, _) = try await client.discoverMac(
-                    serviceType: "_handshake._tcp",
-                    targetPeer: mac,
-                    timeoutSeconds: 6.0,
-                    onStateChange: { [weak self] state in
-                        Task { @MainActor in
-                            self?.connectionState = state
-                            switch state {
-                            case .sendingCommand(let cmd):
-                                self?.commandStage = .sending(cmd)
-                            case .executingCommand(let cmd):
-                                self?.commandStage = .executing(cmd)
-                            case .commandCompleted(let cmd):
-                                self?.commandStage = .completed(cmd, "Confirmed on Mac")
-                            case .commandFailed(let reason):
-                                self?.commandStage = .failed(.sleep, reason)
-                            default:
-                                break
-                            }
+                let masterPSK = await self.trustStore.retrievePreSharedKey(forPeerId: trustRecord.id)
+                guard let masterPSK else {
+                    throw HandshakeClient.ClientError.connectionFailed("Pairing key is missing from this iPhone. Re-pair only if the Mac also no longer recognizes this device.")
+                }
+                let stateCallback: @Sendable (ConnectionState) -> Void = { [weak self] state in
+                    Task { @MainActor in
+                        self?.connectionState = state
+                        switch state {
+                        case .sendingCommand(let cmd):
+                            self?.commandStage = .sending(cmd)
+                        case .executingCommand(let cmd):
+                            self?.commandStage = .executing(cmd)
+                        case .commandCompleted(let cmd):
+                            self?.commandStage = .completed(cmd, "Confirmed on Mac")
+                        case .commandFailed(let reason):
+                            self?.commandStage = .failed(.sleep, reason)
+                        default:
+                            break
                         }
                     }
-                )
+                }
 
-                // 2. Dispatch authenticated sleep command and verify signed acknowledgment
-                let ack = try await client.sendCommand(
+                // Execute command using Wi-Fi first, falling back automatically to Bluetooth LE
+                let (ack, transport) = try await client.executeCommandWithFallback(
                     .sleep,
-                    to: endpoint,
-                    trustedHostPublicKeyHex: mac.publicKeyHex,
-                    preSharedKeyHex: self.activeTrustRecord?.preSharedKeyHex,
-                    onStateChange: { [weak self] state in
-                        Task { @MainActor in
-                            self?.connectionState = state
-                            switch state {
-                            case .sendingCommand(let cmd):
-                                self?.commandStage = .sending(cmd)
-                            case .executingCommand(let cmd):
-                                self?.commandStage = .executing(cmd)
-                            case .commandCompleted(let cmd):
-                                self?.commandStage = .completed(cmd, "Confirmed on Mac")
-                            case .commandFailed(let reason):
-                                self?.commandStage = .failed(.sleep, reason)
-                            default:
-                                break
-                            }
-                        }
-                    }
+                    to: mac,
+                    masterPSK: masterPSK,
+                    wiFiTimeoutSeconds: 2.5,
+                    bleTimeoutSeconds: 5.0,
+                    onStateChange: stateCallback
                 )
 
                 switch ack.status {
-                case .executed, .received:
-                    self.commandStage = .completed(.sleep, "Mac sleep initiated")
+                case .accepted:
+                    self.commandStage = .completed(.sleep, "Sleep request accepted (\(transport.rawValue))")
                     self.connectionState = .commandCompleted(.sleep)
-                    self.alertTitle = "Sleep Initiated"
-                    self.alertMessage = "\(mac.displayName) accepted sleep command. Mac will disconnect as it powers down."
+                    self.alertTitle = "Sleep Request Accepted"
+                    self.alertMessage = "\(mac.displayName) accepted the sleep request over \(transport.rawValue). The Mac may disconnect before physical sleep can be observed."
+                case .received, .authenticated, .authorized, .sleepRequestIssued, .physicalSleepObserved, .executed:
+                    self.commandStage = .failed(.sleep, "Unexpected sleep acknowledgement state")
+                    self.connectionState = .commandFailed(reason: "Unexpected sleep acknowledgement state")
+                    self.alertTitle = "Sleep Status Uncertain"
+                    self.alertMessage = "The Mac returned an unexpected status; no physical-sleep claim was made."
                 case .rejected(let reason):
                     self.commandStage = .failed(.sleep, "Rejected: \(reason)")
                     self.connectionState = .commandFailed(reason: "Mac rejected sleep: \(reason)")
@@ -208,13 +210,18 @@ public final class DashboardViewModel: ObservableObject {
                 let errReason: String
                 switch netErr {
                 case .macNotFound, .timeout:
-                    errReason = "Discovery timed out. Ensure your Mac is on the same Wi-Fi."
+                    errReason = "Discovery timed out. Ensure your Mac is nearby and Handshake is open."
                     self.connectionState = .macUnavailable(reason: errReason)
                     self.alertTitle = "Mac Unavailable"
-                    self.alertMessage = "Could not discover \(mac.displayName) on local Wi-Fi. Verify both devices are on the same network and Handshake is running on your Mac."
+                    self.alertMessage = "Could not discover \(mac.displayName) over local Wi-Fi or Bluetooth LE. Verify Handshake is running on your Mac."
                 case .connectionFailed(let details):
                     errReason = "Connection failed: \(details)"
-                    self.connectionState = .macUnavailable(reason: errReason)
+                    // A discovered peer can still reject or fail a fresh secure
+                    // session (for example, if its locally stored pairing key is
+                    // missing).  That is not evidence that the Mac is absent, so
+                    // preserve the diagnostic state instead of showing the
+                    // misleading "Mac Unavailable" banner.
+                    self.connectionState = .commandFailed(reason: errReason)
                     self.alertTitle = "Connection Failed"
                     self.alertMessage = details
                 case .invalidAcknowledgment:
@@ -242,20 +249,100 @@ public final class DashboardViewModel: ObservableObject {
         self.isPairingSheetPresented = true
     }
 
+    public func handlePairViaBluetoothTapped() {
+        // Initial pairing is always QR initiated. BLE is chosen automatically as
+        // the transport after the scanned invitation's direct TCP path fails.
+        self.isPairingSheetPresented = true
+    }
+
+    public func handleConnectionDiagnosticsTapped() {
+        self.isConnectionDiagnosticsPresented = true
+    }
+
+    public func startBLEDiscovery() {
+        guard let client = self.client else { return }
+        self.discoveredBLEHosts = []
+        self.isScanningBLE = true
+        self.blePairingStage = .notStarted
+        self.blePairingError = nil
+        self.bleDerivedSAS = nil
+
+        Task {
+            do {
+                try await client.scanForNearbyBLEHosts(timeoutSeconds: 8.0) { [weak self] host in
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        if !self.discoveredBLEHosts.contains(where: { $0.id == host.id }) {
+                            self.discoveredBLEHosts.append(host)
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.blePairingError = error.localizedDescription
+                }
+            }
+            await MainActor.run {
+                self.isScanningBLE = false
+            }
+        }
+    }
+
+    public func pairWithSelectedBLEHost(_ host: DiscoveredBLEHost) {
+        self.selectedBLEHost = host
+        self.blePairingError = "Scan the Mac's QR invitation first. Bluetooth is selected automatically if its TCP endpoint cannot be reached."
+    }
+
+    public func approveBLEPairing() {
+        bleSASApprovalContinuation?.resume(returning: true)
+        bleSASApprovalContinuation = nil
+    }
+
+    public func rejectBLEPairing() {
+        bleSASApprovalContinuation?.resume(returning: false)
+        bleSASApprovalContinuation = nil
+        self.blePairingStage = .pairingFailed(reason: "Pairing was rejected on this device.")
+    }
+
+    public func dismissBLEPairing() {
+        bleSASApprovalContinuation?.resume(returning: false)
+        bleSASApprovalContinuation = nil
+        self.isBLEPairingSheetPresented = false
+        self.blePairingStage = .notStarted
+        self.bleDerivedSAS = nil
+        self.selectedBLEHost = nil
+    }
+
     public func executePairing(
         invitation: PairingInvitation,
         onStageChange: (@Sendable (PairingStage) -> Void)? = nil,
         onSASDerived: @escaping @Sendable (String) async -> Bool
     ) async throws -> TrustRecord {
-        guard let client = self.client else {
+        guard let client = self.client, let identity = self.clientIdentity else {
             throw HandshakeClient.ClientError.connectionFailed("Cryptographic client uninitialized")
         }
-        return try await client.pair(
-            with: invitation,
-            trustStore: self.trustStore,
-            onStageChange: onStageChange,
-            onSASDerived: onSASDerived
-        )
+        do {
+            return try await client.pair(
+                with: invitation,
+                trustStore: self.trustStore,
+                onStageChange: onStageChange,
+                onSASDerived: onSASDerived
+            )
+        } catch {
+            // The QR invitation remains authoritative; BLE only replaces an
+            // unreachable TCP carrier for the same signed pairing transcript.
+            let bleClient = BLECentralClient(clientIdentity: identity, sequenceCounter: sequenceCounter)
+            defer { bleClient.disconnect() }
+            let peripheral = try await bleClient.discoverAndConnect(timeoutSeconds: 6.0)
+            return try await bleClient.pairOverBLE(
+                peripheral: peripheral,
+                invitation: invitation,
+                trustStore: trustStore,
+                timeoutSeconds: 12.0,
+                onStageChange: onStageChange,
+                onSASDerived: onSASDerived
+            )
+        }
     }
 
     // MARK: - Disconnect & Reconnect Lifecycle
@@ -278,24 +365,48 @@ public final class DashboardViewModel: ObservableObject {
     }
 
     public func handleReconnectTapped() {
-        guard let mac = pairedMac, let client = client else { return }
+        guard let mac = pairedMac, let client = client, let identity = clientIdentity else { return }
         guard !isExecutingCommand else { return }
 
         connectionState = .reconnecting
 
         Task {
+            // 1. Probe local Wi-Fi first
             do {
-                let (endpoint, _) = try await client.discoverMac(
+                _ = try await client.discoverMac(
                     serviceType: "_handshake._tcp",
                     targetPeer: mac,
-                    timeoutSeconds: 5.0
+                    timeoutSeconds: 2.5
                 )
                 await MainActor.run {
                     self.connectionState = .connected(transport: .localWiFi, peer: mac)
                 }
+                return
+            } catch {
+                // Wi-Fi unreachable, attempt BLE discovery
+            }
+
+            // 2. Probe Bluetooth LE
+            await MainActor.run {
+                self.connectionState = .connecting(transport: .bluetoothLE)
+            }
+
+            let bleClient = BLECentralClient(clientIdentity: identity, sequenceCounter: sequenceCounter)
+            defer {
+                bleClient.disconnect()
+            }
+
+            do {
+                _ = try await bleClient.discoverAndConnect(
+                    targetPeerPublicKeyHex: mac.publicKeyHex,
+                    timeoutSeconds: 4.0
+                )
+                await MainActor.run {
+                    self.connectionState = .connected(transport: .bluetoothLE, peer: mac)
+                }
             } catch {
                 await MainActor.run {
-                    self.connectionState = .connectionFailed(reason: "Mac companion not found on local Wi-Fi.")
+                    self.connectionState = .connectionFailed(reason: "Mac companion not found on local Wi-Fi or Bluetooth LE.")
                 }
             }
         }

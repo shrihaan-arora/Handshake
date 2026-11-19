@@ -14,6 +14,10 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
         showMainWindow()
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        showMainWindow()
+    }
+
     func showMainWindow() {
         if mainWindow == nil {
             let window = NSWindow(

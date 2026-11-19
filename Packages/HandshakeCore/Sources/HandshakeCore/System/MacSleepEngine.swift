@@ -61,34 +61,12 @@ public final class MacSleepEngine: Sendable {
             let ioReturn = IOPMSleepSystem(rootDomain)
             if ioReturn == kIOReturnSuccess {
                 return .sleepInitiated
+            } else {
+                return .failed("IOKit IOPMSleepSystem returned error code: \(ioReturn)")
             }
         }
 
-        // 2. Fallback mechanism: System Events script
-        return triggerSystemEventsSleep()
-    }
-
-    /// Fallback sleep invocation via AppleScript System Events
-    private func triggerSystemEventsSleep() -> SleepExecutionState {
-        let sleepScript = """
-        tell application "System Events"
-            sleep
-        end tell
-        """
-
-        var errorDict: NSDictionary?
-        guard let script = NSAppleScript(source: sleepScript) else {
-            return .failed("Failed to instantiate AppleScript for system sleep.")
-        }
-
-        script.executeAndReturnError(&errorDict)
-        if let error = errorDict {
-            let errorNumber = (error[NSAppleScript.errorNumber] as? Int) ?? 0
-            let errorMessage = (error[NSAppleScript.errorMessage] as? String) ?? "Unknown system error"
-            return .failed("System Events sleep error (\(errorNumber)): \(errorMessage)")
-        }
-
-        return .sleepInitiated
+        return .failed("Unable to locate IOKit Root Power Domain.")
     }
 }
 #endif

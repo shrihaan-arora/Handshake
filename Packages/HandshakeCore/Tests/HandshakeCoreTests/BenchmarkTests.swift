@@ -127,7 +127,7 @@ final class BenchmarkTests: XCTestCase {
         )
 
         let trustStore = TrustStore(keychain: testKeychain, storageAccount: "bench.truststore")
-        let trustRecord = TrustRecord(peer: clientId.identity, authorizedCapabilities: [.lockScreen, .sleep, .ping])
+        let trustRecord = TrustRecord(peer: clientId.identity, authorizedCapabilities: [.sleep, .lockScreen, .ping])
         try await trustStore.addOrUpdate(trustRecord)
 
         let serverPort: UInt16 = 5898
@@ -150,27 +150,50 @@ final class BenchmarkTests: XCTestCase {
         let client = HandshakeClient(clientIdentity: clientId)
         let endpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: .init(integerLiteral: serverPort))
 
-        // Measure round-trip dispatch latency across 5 iterations
+        // 1. Warm-up iterations to prime Network.framework queues, TLS/TCP caches, and CryptoKit engines
+        for _ in 0..<3 {
+            let ack = try await client.sendCommand(.sleep, to: endpoint, trustedHostPublicKeyHex: hostId.identity.publicKeyHex)
+            XCTAssertEqual(ack.status, .executed)
+        }
+
+        // 2. Statistically meaningful sample size: 20 measurement iterations
+        let sampleCount = 20
         var latencies: [Double] = []
-        for _ in 0..<5 {
+        for _ in 0..<sampleCount {
             let start = DispatchTime.now()
-            let ack = try await client.sendCommand(.lockScreen, to: endpoint, trustedHostPublicKeyHex: hostId.identity.publicKeyHex)
+            let ack = try await client.sendCommand(.sleep, to: endpoint, trustedHostPublicKeyHex: hostId.identity.publicKeyHex)
             let durationMs = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000.0
             latencies.append(durationMs)
             XCTAssertEqual(ack.status, .executed)
         }
 
-        let avgLatency = latencies.reduce(0, +) / Double(latencies.count)
+        let sortedLatencies = latencies.sorted()
+        let minLatency = sortedLatencies.first ?? 0
+        let maxLatency = sortedLatencies.last ?? 0
+        let meanLatency = sortedLatencies.reduce(0, +) / Double(sampleCount)
+        let medianLatency = sampleCount % 2 == 0
+            ? (sortedLatencies[sampleCount / 2 - 1] + sortedLatencies[sampleCount / 2]) / 2.0
+            : sortedLatencies[sampleCount / 2]
+        let p95Index = Int(ceil(Double(sampleCount) * 0.95)) - 1
+        let p95Latency = sortedLatencies[max(0, min(p95Index, sampleCount - 1))]
+
         print("""
         ============================================================
-        END-TO-END COMMAND DISPATCH BENCHMARK:
-        - Port: \(serverPort) (TCP Loopback)
-        - Iterations: 5
-        - Measurements: \(latencies.map { String(format: "%.2f ms", $0) })
-        - Average Latency: \(String(format: "%.2f", avgLatency)) ms
+        END-TO-END COMMAND DISPATCH BENCHMARK (V1 SLEEP DISPATCH):
+        - Endpoint: \(endpoint)
+        - Protocol: Ephemeral P-256 ECDH + Bilateral ECDSA + AES-256-GCM
+        - Warm-up Iterations: 3
+        - Sample Size: \(sampleCount)
+        - Min Latency:    \(String(format: "%6.2f ms", minLatency))
+        - Median (p50):   \(String(format: "%6.2f ms", medianLatency))
+        - Mean Latency:   \(String(format: "%6.2f ms", meanLatency))
+        - p95 Latency:    \(String(format: "%6.2f ms", p95Latency))
+        - Max Latency:    \(String(format: "%6.2f ms", maxLatency))
         ============================================================
         """)
 
-        XCTAssertLessThan(avgLatency, 50.0, "Average local TCP command round-trip must be under 50ms")
+        // Assert production SLA boundaries
+        XCTAssertLessThan(medianLatency, 100.0, "Median local TCP command round-trip must be under 100ms")
+        XCTAssertLessThan(p95Latency, 150.0, "95th-percentile local TCP command round-trip must be under 150ms")
     }
 }

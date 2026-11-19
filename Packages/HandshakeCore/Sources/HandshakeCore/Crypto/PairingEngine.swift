@@ -214,16 +214,16 @@ public actor HostPairingSession {
             authorizedCapabilities: [.sleep],
             preSharedKeyHex: pskHex
         )
-        try await trustStore.addOrUpdate(trustRecord)
+        let persistedTrustRecord = try await trustStore.addOrUpdate(trustRecord)
 
         let completion = PairingCompletion(
             invitationId: invitation.id,
             isSuccessful: true,
             hostApprovalSignatureHex: hostApprovalSig.hexString,
-            establishedTrustRecord: trustRecord
+            establishedTrustRecord: persistedTrustRecord
         )
 
-        return (completion, trustRecord)
+        return (completion, persistedTrustRecord)
     }
 }
 
@@ -327,11 +327,15 @@ public actor ClientPairingSession {
         confirmData.append("CONFIRM".data(using: .utf8)!)
         let clientSig = try clientIdentity.sign(data: confirmData)
 
+        // Security requirement SEC-03: The SAS code is never transmitted across the network.
+        // Bilateral authentication and user approval are cryptographically attested by `clientSig`
+        // bound to the canonical transcript (which contains both ephemeral keys, both identity keys,
+        // and the nonce).
         return PairingConfirmation(
             invitationId: invitation.id,
             isApproved: true,
             clientSignatureHex: clientSig.hexString,
-            confirmedSASCode: self.derivedSAS ?? ""
+            confirmedSASCode: "" // Zero wire leakage of human authentication string
         )
     }
 
@@ -383,7 +387,6 @@ public actor ClientPairingSession {
             authorizedCapabilities: [.sleep],
             preSharedKeyHex: pskHex
         )
-        try await trustStore.addOrUpdate(trustRecord)
-        return trustRecord
+        return try await trustStore.addOrUpdate(trustRecord)
     }
 }

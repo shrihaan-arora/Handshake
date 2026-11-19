@@ -17,6 +17,7 @@ public enum SecureChannel {
         case payloadExpired
         case encodingFailed
         case decodingFailed
+        case missingPreSharedKey
 
         public var errorDescription: String? {
             switch self {
@@ -36,6 +37,8 @@ public enum SecureChannel {
                 return "Failed to serialize command message."
             case .decodingFailed:
                 return "Failed to deserialize decrypted command payload."
+            case .missingPreSharedKey:
+                return "Pre-shared key is missing or invalid. Secure session key derivation failed."
             }
         }
     }
@@ -67,20 +70,19 @@ public enum SecureChannel {
         )
     }
 
-    /// Resolves session key: if preSharedKeyHex is present, derives directional key;
-    /// otherwise falls back to SHA256 of the public key hex for compatibility.
+    /// Resolves session key: if preSharedKeyHex is present and valid 32 bytes (256 bits), derives directional key;
+    /// otherwise fails closed and throws ChannelError.missingPreSharedKey.
+    /// Public keys or unauthenticated parameters are NEVER used as secret key material.
     public static func resolveSessionKey(
         preSharedKeyHex: String?,
-        fallbackPublicKeyHex: String,
         role: DirectionalRole
-    ) -> SymmetricKey {
-        if let pskHex = preSharedKeyHex,
-           let pskData = Data(hexString: pskHex),
-           pskData.count == 32 {
-            return deriveDirectionalKey(from: SymmetricKey(data: pskData), role: role)
+    ) throws -> SymmetricKey {
+        guard let pskHex = preSharedKeyHex,
+              let pskData = Data(hexString: pskHex),
+              pskData.count == 32 else {
+            throw ChannelError.missingPreSharedKey
         }
-        let fallbackData = Data(hexString: fallbackPublicKeyHex) ?? Data()
-        return SymmetricKey(data: SHA256.hash(data: fallbackData))
+        return deriveDirectionalKey(from: SymmetricKey(data: pskData), role: role)
     }
 
     // MARK: - Deterministic Nonce Construction

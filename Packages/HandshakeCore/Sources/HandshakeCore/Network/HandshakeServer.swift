@@ -2,6 +2,42 @@ import Foundation
 import Network
 import CryptoKit
 
+/// Thread-safe, bounded, deterministic FIFO replay cache for message and session identifiers.
+/// Provides O(1) membership lookup with strict memory bounds and deterministic oldest-first eviction.
+private struct BoundedReplayCache: Sendable {
+    private let capacity: Int
+    private var order: [UUID] = []
+    private var set: Set<UUID> = []
+
+    init(capacity: Int) {
+        self.capacity = capacity
+        self.order.reserveCapacity(capacity)
+    }
+
+    func contains(_ id: UUID) -> Bool {
+        set.contains(id)
+    }
+
+    /// Returns true if the ID is fresh (inserted), false if it was already seen (replay).
+    mutating func insertIfFresh(_ id: UUID) -> Bool {
+        if set.contains(id) {
+            return false
+        }
+        if order.count >= capacity {
+            let oldest = order.removeFirst()
+            set.remove(oldest)
+        }
+        order.append(id)
+        set.insert(id)
+        return true
+    }
+
+    mutating func removeAll() {
+        order.removeAll(keepingCapacity: true)
+        set.removeAll(keepingCapacity: true)
+    }
+}
+
 /// Local peer-to-peer TCP server for the host Mac companion.
 /// Advertises `_handshake._tcp` via Bonjour and receives authenticated commands
 /// strictly while the application's main window remains open.
@@ -30,8 +66,8 @@ public actor HandshakeServer {
     private let trustStore: TrustStore
     private let initialSequenceCounter: SequenceCounter
     private var peerSequenceCounters: [String: SequenceCounter] = [:]
-    private var recentSessionIds: Set<UUID> = []
-    private var recentCommandIds: Set<UUID> = []
+    private var recentSessionIds = BoundedReplayCache(capacity: 1000)
+    private var recentCommandIds = BoundedReplayCache(capacity: 2000)
     private var initialCounterAssigned: Bool = false
     private let executionHandler: CommandExecutionHandler
     private let commandLogRepository: CommandLogRepository?
@@ -104,6 +140,7 @@ public actor HandshakeServer {
             let tcpOptions = NWProtocolTCP.Options()
             tcpOptions.enableKeepalive = false
             let params = NWParameters(tls: nil, tcp: tcpOptions)
+            params.prohibitedInterfaceTypes = [.cellular]
             params.allowLocalEndpointReuse = true
 
             let nwPort = NWEndpoint.Port(rawValue: port) ?? NWEndpoint.Port(integerLiteral: 5894)
@@ -122,19 +159,25 @@ public actor HandshakeServer {
             )
 
             newListener.newConnectionHandler = { [weak self] connection in
+                let now = ISO8601DateFormatter().string(from: Date())
+                print("[\(now)][HandshakePairing][Server] NEW INCOMING TCP CONNECTION from: \(connection.endpoint)")
                 Task { [weak self] in
                     await self?.handleIncomingConnection(connection)
                 }
             }
 
             newListener.stateUpdateHandler = { state in
+                let now = ISO8601DateFormatter().string(from: Date())
                 switch state {
                 case .ready:
-                    break
+                    let boundPort = newListener.port?.rawValue ?? 0
+                    print("[\(now)][HandshakePairing][Server] NWListener is READY on port \(boundPort) (service: \(self.serviceType), name: \(self.hostIdentity.identity.displayName))")
                 case .failed(let error):
-                    print("HandshakeServer listener failed: \(error)")
+                    print("[\(now)][HandshakePairing][Server] NWListener FAILED: \(error.localizedDescription) (error: \(error))")
+                case .waiting(let error):
+                    print("[\(now)][HandshakePairing][Server] NWListener WAITING: \(error.localizedDescription) (error: \(error))")
                 default:
-                    break
+                    print("[\(now)][HandshakePairing][Server] NWListener state: \(state)")
                 }
             }
 
@@ -153,6 +196,12 @@ public actor HandshakeServer {
         _ session: HostPairingSession?,
         approvalHandler: PairingApprovalHandler? = nil
     ) {
+        let now = ISO8601DateFormatter().string(from: Date())
+        if let s = session {
+            print("[\(now)][HandshakePairing][Server] Active pairing session registered: id=\(s.invitation.id), hostAddress=\(s.invitation.hostAddress ?? "nil"), port=\(s.invitation.localPort), expires=\(s.invitation.expiresAt)")
+        } else {
+            print("[\(now)][HandshakePairing][Server] Active pairing session cleared.")
+        }
         self.activePairingSession = session
         self.pairingApprovalHandler = approvalHandler
     }
@@ -172,25 +221,11 @@ public actor HandshakeServer {
     }
 
     private func validateAndRecordSessionId(_ id: UUID) -> Bool {
-        if recentSessionIds.contains(id) {
-            return false
-        }
-        recentSessionIds.insert(id)
-        if recentSessionIds.count > 1000 {
-            recentSessionIds.removeFirst()
-        }
-        return true
+        recentSessionIds.insertIfFresh(id)
     }
 
     private func validateAndRecordCommandId(_ id: UUID) -> Bool {
-        if recentCommandIds.contains(id) {
-            return false
-        }
-        recentCommandIds.insert(id)
-        if recentCommandIds.count > 2000 {
-            recentCommandIds.removeFirst()
-        }
-        return true
+        recentCommandIds.insertIfFresh(id)
     }
 
     private func counter(for peerPublicKeyHex: String) -> SequenceCounter {
@@ -221,6 +256,29 @@ public actor HandshakeServer {
     // MARK: - Inbound Connection Processing
 
     private func handleIncomingConnection(_ connection: NWConnection) {
+        let now = ISO8601DateFormatter().string(from: Date())
+        print("[\(now)][HandshakePairing][Server] Starting incoming connection from \(connection.endpoint)")
+        connection.stateUpdateHandler = { state in
+            let ts = ISO8601DateFormatter().string(from: Date())
+            switch state {
+            case .ready:
+                print("[\(ts)][HandshakePairing][Server] Inbound connection READY from \(connection.endpoint)")
+            case .failed(let err):
+                print("[\(ts)][HandshakePairing][Server] Inbound connection FAILED: \(err.localizedDescription) (error: \(err))")
+            case .waiting(let err):
+                print("[\(ts)][HandshakePairing][Server] Inbound connection WAITING: \(err.localizedDescription) (error: \(err))")
+            case .cancelled:
+                print("[\(ts)][HandshakePairing][Server] Inbound connection CANCELLED")
+            default:
+                print("[\(ts)][HandshakePairing][Server] Inbound connection state: \(state)")
+            }
+        }
+        connection.pathUpdateHandler = { path in
+            let ts = ISO8601DateFormatter().string(from: Date())
+            let ifaces = path.availableInterfaces.map { "\($0.name)(\($0.type))" }.joined(separator: ", ")
+            print("[\(ts)][HandshakePairing][Server] Inbound connection path: status=\(path.status), interfaces=[\(ifaces)], isExpensive=\(path.isExpensive)")
+        }
+
         let queue = DispatchQueue(label: "com.handshake.server.connection.\(UUID().uuidString)", qos: .userInitiated)
         connection.start(queue: queue)
 
@@ -253,11 +311,14 @@ public actor HandshakeServer {
                     do {
                         rawData = try await NetworkFraming.receive(from: connection)
                     } catch NetworkFraming.FramingError.connectionClosed {
+                        print("[\(ISO8601DateFormatter().string(from: Date()))][HandshakePairing][Server] Client closed connection.")
                         break // Clean disconnect from client
                     }
 
                     // Check if incoming frame is a PairingRequest
                     if let pairingRequest = try? JSONDecoder().decode(PairingRequest.self, from: rawData) {
+                        let ts = ISO8601DateFormatter().string(from: Date())
+                        print("[\(ts)][HandshakePairing][Server][\(pairingRequest.invitationId)] PAIRING REQUEST RECEIVED from \(pairingRequest.clientIdentity.displayName) (UUID: \(pairingRequest.clientIdentity.id))")
                         _ = try? self.pairingEventRepository?.insert(PairingEventRecord(
                             peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
                             peerDeviceName: pairingRequest.clientIdentity.displayName,
@@ -266,6 +327,7 @@ public actor HandshakeServer {
                         ))
 
                         guard let hostSession = self.activePairingSession else {
+                            print("[\(ts)][HandshakePairing][Server][\(pairingRequest.invitationId)] REJECTING: No active pairing session on Mac!")
                             try await sendRejection(
                                 commandId: pairingRequest.invitationId,
                                 peerDeviceId: pairingRequest.clientIdentity.id.uuidString,
@@ -387,7 +449,18 @@ public actor HandshakeServer {
                     }
 
                     // Check if incoming frame is a fresh SessionInitiation handshake
-                    if activeSession == nil, let sessionInit = try? JSONDecoder().decode(SessionInitiation.self, from: rawData) {
+                    if let sessionInit = try? JSONDecoder().decode(SessionInitiation.self, from: rawData) {
+                        // If this connection already had an active session, cleanly mark it superseded
+                        if let oldSessionDbId = activeSessionDbId {
+                            try? self.deviceSessionRepository?.endSession(
+                                id: oldSessionDbId,
+                                endedAt: DatabaseManager.iso8601String(),
+                                status: "superseded"
+                            )
+                            activeSessionDbId = nil
+                            activeSession = nil
+                        }
+
                         // 1a. Validate clock skew
                         guard HandshakeTime.isTimestampValid(sessionInit.timestampMilliseconds) else {
                             try await sendRejection(
@@ -542,9 +615,10 @@ public actor HandshakeServer {
                         break
                     }
 
-                    // 3. Authenticate and decrypt envelope with fresh session key (or fallback)
+                    // 3. Authenticate and decrypt envelope with fresh session key (or direct pre-shared key)
                     let sessionKey: SymmetricKey
                     let expectedNonceSalt: Data?
+                    let sequenceCounter: SequenceCounter
 
                     if let session = activeSession {
                         guard !session.isExpired() else {
@@ -571,25 +645,37 @@ public actor HandshakeServer {
                         }
                         sessionKey = session.clientToHostKey
                         expectedNonceSalt = session.clientToHostNonceSalt
+                        sequenceCounter = session.incomingSequenceCounter
                     } else {
                         let masterPSK = await trustStore.retrievePreSharedKey(forPeerId: trustRecord.id)
                         let pskHex = masterPSK?.withUnsafeBytes { Data($0).hexString } ?? trustRecord.preSharedKeyHex
-                        sessionKey = SecureChannel.resolveSessionKey(
-                            preSharedKeyHex: pskHex,
-                            fallbackPublicKeyHex: envelope.senderPublicKeyHex,
-                            role: .clientToHost
-                        )
+                        do {
+                            sessionKey = try SecureChannel.resolveSessionKey(
+                                preSharedKeyHex: pskHex,
+                                role: .clientToHost
+                            )
+                        } catch {
+                            try await sendRejection(
+                                commandId: envelope.id,
+                                peerDeviceId: trustRecord.peer.id.uuidString,
+                                peerDeviceName: trustRecord.peer.displayName,
+                                commandType: "UNKNOWN",
+                                reason: "Authentication failed: Missing or invalid pre-shared key.",
+                                over: connection
+                            )
+                            break
+                        }
                         expectedNonceSalt = nil
+                        sequenceCounter = self.counter(for: trustRecord.peer.publicKeyHex)
                     }
 
-                    let peerCounter = self.counter(for: trustRecord.peer.publicKeyHex)
                     let message: CommandMessage
                     do {
                         message = try await SecureChannel.open(
                             envelope: envelope,
                             sessionKey: sessionKey,
                             trustedSenderPublicKeyHex: trustRecord.peer.publicKeyHex,
-                            sequenceCounter: peerCounter,
+                            sequenceCounter: sequenceCounter,
                             expectedNonceSalt: expectedNonceSalt
                         )
                     } catch {
@@ -664,6 +750,26 @@ public actor HandshakeServer {
                         statusStr = "executed"
                         resultCode = "SUCCESS"
                         errorMsg = nil
+                    case .accepted:
+                        statusStr = "accepted"
+                        resultCode = "ACCEPTED"
+                        errorMsg = nil
+                    case .authenticated:
+                        statusStr = "authenticated"
+                        resultCode = "PENDING"
+                        errorMsg = nil
+                    case .authorized:
+                        statusStr = "authorized"
+                        resultCode = "PENDING"
+                        errorMsg = nil
+                    case .sleepRequestIssued:
+                        statusStr = "sleep_request_issued"
+                        resultCode = "SLEEP_REQUEST_ISSUED"
+                        errorMsg = nil
+                    case .physicalSleepObserved:
+                        statusStr = "physical_sleep_observed"
+                        resultCode = "PHYSICAL_SLEEP_OBSERVED"
+                        errorMsg = nil
                     case .failed(let reason):
                         statusStr = "failed"
                         resultCode = "FAILED"
@@ -693,7 +799,7 @@ public actor HandshakeServer {
 
                     // 8. Orderly two-stage sleep processing:
                     // Guarantee the client receives acknowledgment before sleep enters power-down
-                    if message.command == .sleep, case .executed = status {
+                    if message.command == .sleep, case .accepted = status {
                         #if os(macOS)
                         await awaitReceiptAndSleep(
                             over: connection,
@@ -752,7 +858,36 @@ public actor HandshakeServer {
             group.cancelAll()
         }
 
-        _ = sleepEngine.triggerSleep()
+        let result = sleepEngine.triggerSleep()
+        let completedAt = DatabaseManager.iso8601String()
+        switch result {
+        case .sleepInitiated:
+            try? commandLogRepository?.updateCompletion(
+                requestId: expectedCommandId.uuidString,
+                status: "sleep_request_issued",
+                completedAt: completedAt,
+                resultCode: "SLEEP_REQUEST_ISSUED",
+                errorMessage: nil
+            )
+        case .failed(let reason):
+            try? commandLogRepository?.updateCompletion(
+                requestId: expectedCommandId.uuidString,
+                status: "failed",
+                completedAt: completedAt,
+                resultCode: "FAILED",
+                errorMessage: reason
+            )
+        case .sleepNotSupported:
+            try? commandLogRepository?.updateCompletion(
+                requestId: expectedCommandId.uuidString,
+                status: "failed",
+                completedAt: completedAt,
+                resultCode: "UNSUPPORTED",
+                errorMessage: "System sleep is not supported on this Mac"
+            )
+        default:
+            break
+        }
     }
     #endif
 

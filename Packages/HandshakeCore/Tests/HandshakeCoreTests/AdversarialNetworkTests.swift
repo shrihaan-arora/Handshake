@@ -175,7 +175,7 @@ final class AdversarialNetworkTests: XCTestCase {
         try await server.start()
 
         // Create a sealed envelope with fixed sequence number = 10
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         let envelope = try SecureChannel.seal(
             message: cmd,
@@ -219,7 +219,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         let validEnvelope = try SecureChannel.seal(
             message: cmd,
@@ -277,7 +277,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         let validEnvelope = try SecureChannel.seal(
             message: cmd,
@@ -332,7 +332,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         // Forger signs envelope while claiming to be client
         let forgedEnvelope = try SecureChannel.seal(
@@ -386,7 +386,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         let validEnvelope = try SecureChannel.seal(
             message: cmd,
@@ -438,7 +438,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
 
         // 60 seconds into the past (exceeds default 30.0s window)
         let pastDate = Date().addingTimeInterval(-60.0)
@@ -485,7 +485,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore, sequenceCounter: serverCounter)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
 
         // Send sequence number 50 (difference 2450 > window 1000)
         let cmd = CommandMessage(command: .lockScreen)
@@ -526,7 +526,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
 
         let fixedId = UUID()
         let cmd = CommandMessage(id: fixedId, command: .lockScreen)
@@ -659,7 +659,7 @@ final class AdversarialNetworkTests: XCTestCase {
         let server = makeSafeServer(port: port, host: host, trustStore: trustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         let envelope = try SecureChannel.seal(
             message: cmd,

@@ -29,21 +29,39 @@ public struct iPhoneDashboardView: View {
 
                             Spacer()
 
-                            Button {
-                                viewModel.handleSecurityAuditTapped()
-                            } label: {
-                                Image(systemName: "shield.lefthalf.filled")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(.primary)
-                                    .padding(HandshakeTheme.Spacing.xs + 2)
-                                    .background(.ultraThinMaterial, in: Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(HandshakeTheme.Colors.hairline, lineWidth: 1)
-                                    )
+                            HStack(spacing: HandshakeTheme.Spacing.xs) {
+                                Button {
+                                    viewModel.handleConnectionDiagnosticsTapped()
+                                } label: {
+                                    Image(systemName: "waveform.path.ecg")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(.primary)
+                                        .padding(HandshakeTheme.Spacing.xs + 2)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(HandshakeTheme.Colors.hairline, lineWidth: 1)
+                                        )
+                                }
+                                .accessibilityLabel("Connection Diagnostics")
+                                .accessibilityHint("Opens real-time transport, Wi-Fi socket and Bluetooth diagnostics")
+
+                                Button {
+                                    viewModel.handleSecurityAuditTapped()
+                                } label: {
+                                    Image(systemName: "shield.lefthalf.filled")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(.primary)
+                                        .padding(HandshakeTheme.Spacing.xs + 2)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(HandshakeTheme.Colors.hairline, lineWidth: 1)
+                                        )
+                                }
+                                .accessibilityLabel("Security Posture Audit")
+                                .accessibilityHint("Opens detailed cryptographic and transport security assessment")
                             }
-                            .accessibilityLabel("Security Posture Audit")
-                            .accessibilityHint("Opens detailed cryptographic and transport security assessment")
                         }
 
                         // Connection Pill
@@ -87,38 +105,84 @@ public struct iPhoneDashboardView: View {
                         .accessibilityLabel("Paired device: \(mac.displayName), \(mac.modelIdentifier), fingerprint \(mac.shortFingerprint)")
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     } else {
-                        Button {
-                            viewModel.handlePairNewDeviceTapped()
-                        } label: {
-                            HandshakeCard {
-                                HStack(spacing: HandshakeTheme.Spacing.md) {
-                                    Image(systemName: "qrcode.viewfinder")
-                                        .font(.system(size: 28, weight: .medium))
-                                        .foregroundStyle(Color.accentColor)
-                                        .frame(width: 44, height: 44)
-                                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: HandshakeTheme.Radius.sm, style: .continuous))
+                        VStack(spacing: HandshakeTheme.Spacing.sm) {
+                            // Option 1: Direct Bluetooth LE Pairing (Primary & Zero-Camera)
+                            Button {
+                                viewModel.handlePairViaBluetoothTapped()
+                            } label: {
+                                HandshakeCard {
+                                    HStack(spacing: HandshakeTheme.Spacing.md) {
+                                        Image(systemName: "dot.radiowaves.left.and.right")
+                                            .font(.system(size: 26, weight: .semibold))
+                                            .foregroundStyle(Color.accentColor)
+                                            .frame(width: 44, height: 44)
+                                            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: HandshakeTheme.Radius.sm, style: .continuous))
 
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Pair With Your Mac")
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            HStack(spacing: 6) {
+                                                Text("Pair via Bluetooth")
+                                                    .font(.headline)
+                                                    .foregroundStyle(.primary)
 
-                                        Text("Tap to open camera and scan pairing QR code")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                                Text("RECOMMENDED")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.blue.opacity(0.15), in: Capsule())
+                                                    .foregroundStyle(.blue)
+                                            }
+
+                                            Text("Direct zero-camera setup with nearby Mac")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.tertiary)
                                     }
-
-                                    Spacer()
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.tertiary)
                                 }
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Pair via Bluetooth. Direct zero-camera setup with nearby Mac.")
+
+                            // Option 2: Camera QR Scan Pairing (Fallback)
+                            Button {
+                                viewModel.handlePairNewDeviceTapped()
+                            } label: {
+                                HandshakeCard {
+                                    HStack(spacing: HandshakeTheme.Spacing.md) {
+                                        Image(systemName: "qrcode.viewfinder")
+                                            .font(.system(size: 26, weight: .medium))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 44, height: 44)
+                                            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: HandshakeTheme.Radius.sm, style: .continuous))
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Pair via Camera")
+                                                .font(.headline)
+                                                .foregroundStyle(.primary)
+
+                                            Text("Scan pairing QR code displayed on Mac")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Pair via Camera. Scan pairing QR code displayed on Mac.")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("No paired MacBook. Tap to open camera and scan pairing QR code.")
                         .padding(.horizontal, HandshakeTheme.Spacing.md)
                     }
 

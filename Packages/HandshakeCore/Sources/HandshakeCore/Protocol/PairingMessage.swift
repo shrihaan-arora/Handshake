@@ -2,7 +2,7 @@ import Foundation
 
 /// Protocol messages exchanged during the mutual device pairing process.
 public enum PairingMessage: Codable, Sendable, Equatable {
-    /// Step 1: iPhone initiates connection to Mac after reading the QR invitation.
+    /// Step 1: iPhone initiates connection after reading the Mac QR invitation.
     case request(PairingRequest)
 
     /// Step 2: Mac returns its identity and ephemeral key parameters.
@@ -13,6 +13,26 @@ public enum PairingMessage: Codable, Sendable, Equatable {
 
     /// Step 4: Final handshake acknowledgment and session completion.
     case completion(PairingCompletion)
+}
+
+public struct PairingDiscoveryRequest: Codable, Sendable, Equatable {
+    public let clientIdentity: DeviceIdentity
+    public let timestamp: Date
+
+    public init(clientIdentity: DeviceIdentity, timestamp: Date = Date()) {
+        self.clientIdentity = clientIdentity
+        self.timestamp = timestamp
+    }
+}
+
+public struct PairingOffer: Codable, Sendable, Equatable {
+    public let invitation: PairingInvitation
+    public let hostSignatureHex: String
+
+    public init(invitation: PairingInvitation, hostSignatureHex: String = "") {
+        self.invitation = invitation
+        self.hostSignatureHex = hostSignatureHex
+    }
 }
 
 public struct PairingRequest: Codable, Sendable, Equatable {
@@ -61,6 +81,9 @@ public struct PairingConfirmation: Codable, Sendable, Equatable {
     public let invitationId: UUID
     public let isApproved: Bool
     public let clientSignatureHex: String
+    /// Deprecated wire field: The 6-digit numeric Short Authentication String (SAS) is an out-of-band
+    /// visual comparison token and must never be transmitted over the wire. Authentication is cryptographically
+    /// bound via `clientSignatureHex` over the complete handshake transcript.
     public let confirmedSASCode: String
 
     public init(
@@ -94,4 +117,3 @@ public struct PairingCompletion: Codable, Sendable, Equatable {
         self.establishedTrustRecord = establishedTrustRecord
     }
 }
-

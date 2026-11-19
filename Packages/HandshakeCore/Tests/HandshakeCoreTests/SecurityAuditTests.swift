@@ -294,7 +294,7 @@ final class SecurityAuditTests: XCTestCase {
         let server = createAuditServer(port: port, host: host, trustStore: hostTrustStore)
         try await server.start()
 
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
         let cmd = CommandMessage(command: .lockScreen)
         let envelopeSeq1 = try SecureChannel.seal(
             message: cmd,
@@ -340,7 +340,7 @@ final class SecurityAuditTests: XCTestCase {
         try await server.start()
 
         let duplicateUUID = UUID()
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: client.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
 
         // Envelope 1: sequence 1, duplicateUUID
         let cmd1 = CommandMessage(id: duplicateUUID, command: .lockScreen)
@@ -381,7 +381,7 @@ final class SecurityAuditTests: XCTestCase {
     func test06_InvalidSignatures() async throws {
         let (host, client) = try makeIdentities()
         let pskHex = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0).hexString }
-        let sessionKey = SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, fallbackPublicKeyHex: host.identity.publicKeyHex, role: .clientToHost)
+        let sessionKey = try SecureChannel.resolveSessionKey(preSharedKeyHex: pskHex, role: .clientToHost)
 
         let cmd = CommandMessage(command: .lockScreen)
         let validEnvelope = try SecureChannel.seal(

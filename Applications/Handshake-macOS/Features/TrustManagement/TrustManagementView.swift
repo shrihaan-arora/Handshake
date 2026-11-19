@@ -75,6 +75,14 @@ public struct TrustManagementView: View {
                                                 .padding(.horizontal, 6)
                                                 .padding(.vertical, 2)
                                                 .background(Color.red.opacity(0.1), in: Capsule())
+                                        } else if record.isSuperseded {
+                                            Text("SUPERSEDED")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(.secondary)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.secondary.opacity(0.12), in: Capsule())
                                         } else {
                                             Text("TRUSTED")
                                                 .font(.caption2)
@@ -93,7 +101,7 @@ public struct TrustManagementView: View {
 
                                 Spacer()
 
-                                if !record.isRevoked {
+                                if record.isActive {
                                     Button("Revoke") {
                                         deviceToRevoke = record
                                     }
@@ -106,7 +114,7 @@ public struct TrustManagementView: View {
                             }
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(record.peer.displayName), \(record.peer.modelIdentifier), status: \(record.isRevoked ? "Revoked" : "Trusted"), fingerprint \(record.peer.shortFingerprint)")
+                        .accessibilityLabel("\(record.peer.displayName), \(record.peer.modelIdentifier), status: \(record.isRevoked ? "Revoked" : (record.isSuperseded ? "Superseded" : "Trusted")), fingerprint \(record.peer.shortFingerprint)")
                     }
                 }
             }
@@ -136,4 +144,3 @@ public struct TrustManagementView: View {
         }
     }
 }
-

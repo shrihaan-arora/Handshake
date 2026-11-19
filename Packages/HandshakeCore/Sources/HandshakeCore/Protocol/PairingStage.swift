@@ -3,6 +3,8 @@ import Foundation
 /// Diagnostic lifecycle stages during mutual device pairing.
 /// Used for real-time UI progression, bounded timeout tracking, and security auditing.
 public enum PairingStage: Sendable, Equatable {
+    /// No pairing attempt is active.
+    case notStarted
     /// Step 1: Camera detected raw QR code payload.
     case qrDetected
     /// Step 2: Parsing URL components and parameters.
@@ -30,6 +32,7 @@ public enum PairingStage: Sendable, Equatable {
 
     public var title: String {
         switch self {
+        case .notStarted: return "Ready to Pair"
         case .qrDetected: return "QR Code Detected"
         case .invitationParsing: return "Reading Invitation..."
         case .invitationValidating: return "Validating Parameters..."
@@ -47,6 +50,8 @@ public enum PairingStage: Sendable, Equatable {
 
     public var detail: String {
         switch self {
+        case .notStarted:
+            return "Waiting for a QR-initiated pairing attempt."
         case .qrDetected:
             return "Local pairing QR code read from camera."
         case .invitationParsing:
@@ -76,6 +81,7 @@ public enum PairingStage: Sendable, Equatable {
 
     public var sfSymbolName: String {
         switch self {
+        case .notStarted: return "qrcode.viewfinder"
         case .qrDetected: return "qrcode"
         case .invitationParsing: return "doc.text.magnifyingglass"
         case .invitationValidating: return "checkmark.shield"

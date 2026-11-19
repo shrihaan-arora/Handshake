@@ -77,14 +77,25 @@ public struct MacPairingView: View {
                 .foregroundStyle(.secondary)
             }
 
-            // Security note
-            HStack(spacing: MacTheme.Spacing.xs) {
-                Image(systemName: "checkmark.shield")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                Text("Zero private keys in QR. Hardware-pinned during mutual handshake.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // Security note & BLE indicator
+            VStack(spacing: MacTheme.Spacing.xs) {
+                HStack(spacing: MacTheme.Spacing.xs) {
+                    Image(systemName: "checkmark.shield")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                    Text("Zero private keys in QR. Hardware-pinned during mutual handshake.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: MacTheme.Spacing.xs) {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    Text("Bluetooth LE Pairing Active • Direct zero-camera discovery ready")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Cancel Button

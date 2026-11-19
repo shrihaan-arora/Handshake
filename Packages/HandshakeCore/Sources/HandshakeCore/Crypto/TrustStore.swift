@@ -6,6 +6,17 @@ import CryptoKit
 /// survive application restarts without cloud dependence.
 public actor TrustStore {
 
+    public enum TrustStoreError: Error, LocalizedError, Equatable {
+        case revokedRecordCannotBeReactivated
+
+        public var errorDescription: String? {
+            switch self {
+            case .revokedRecordCannotBeReactivated:
+                return "A revoked trust record cannot be reactivated in place. Complete a new approved pairing to establish a new record."
+            }
+        }
+    }
+
     private let keychain: KeychainManager
     private let storageAccount: String
     private var records: [UUID: TrustRecord] = [:]
@@ -16,7 +27,16 @@ public actor TrustStore {
     ) {
         self.keychain = keychain
         self.storageAccount = storageAccount
-        self.records = Self.loadFromKeychain(keychain: keychain, account: storageAccount)
+        let loaded = Self.loadFromKeychain(keychain: keychain, account: storageAccount)
+        let consolidated = Self.consolidateLegacyActiveDuplicates(loaded)
+        self.records = consolidated
+
+        // A single Keychain item holds the serialized record set. Persisting
+        // this non-destructive migration atomically keeps the originals for
+        // audit while making ambiguous old active records non-authorizing.
+        if loaded != consolidated, let data = try? JSONEncoder().encode(Array(consolidated.values)) {
+            try? keychain.save(data: data, forAccount: storageAccount)
+        }
     }
 
     // MARK: - Persistence Helpers
@@ -34,9 +54,44 @@ public actor TrustStore {
     }
 
     private func saveToKeychain() throws {
-        let array = Array(records.values)
+        let array = allRecords()
         let data = try JSONEncoder().encode(array)
         try keychain.save(data: data, forAccount: storageAccount)
+    }
+
+    private func records(matchingPublicKeyHex publicKeyHex: String) -> [TrustRecord] {
+        let normalized = publicKeyHex.lowercased()
+        return records.values.filter { $0.peer.publicKeyHex.lowercased() == normalized }
+    }
+
+    private static func recordsByNewestFirst(_ candidates: [TrustRecord]) -> [TrustRecord] {
+        candidates.sorted {
+            if $0.pairedAt != $1.pairedAt { return $0.pairedAt > $1.pairedAt }
+            if $0.lastSeenAt != $1.lastSeenAt { return $0.lastSeenAt > $1.lastSeenAt }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+
+    private static func consolidateLegacyActiveDuplicates(_ source: [UUID: TrustRecord]) -> [UUID: TrustRecord] {
+        var consolidated = source
+        let fullPublicKeys = Set(source.values.map { $0.peer.publicKeyHex.lowercased() })
+
+        for publicKey in fullPublicKeys {
+            let active = recordsByNewestFirst(
+                consolidated.values.filter {
+                    $0.peer.publicKeyHex.lowercased() == publicKey && $0.isActive
+                }
+            )
+            guard let canonical = active.first, active.count > 1 else { continue }
+
+            let timestamp = Date()
+            for duplicate in active.dropFirst() {
+                var superseded = duplicate
+                superseded.markSuperseded(by: canonical.id, at: timestamp)
+                consolidated[superseded.id] = superseded
+            }
+        }
+        return consolidated
     }
 
     // MARK: - Key Management (Keychain-Isolated Master Secrets)
@@ -77,14 +132,49 @@ public actor TrustStore {
     // MARK: - Query & Mutation
 
     /// Stores a new trusted device record or updates an existing one.
-    public func addOrUpdate(_ record: TrustRecord) throws {
-        var sanitized = record
-        if let pskHex = record.preSharedKeyHex, let pskData = Data(hexString: pskHex), pskData.count == 32 {
-            try? savePreSharedKey(SymmetricKey(data: pskData), forPeerId: record.id)
-            sanitized.preSharedKeyHex = nil
+    @discardableResult
+    public func addOrUpdate(_ record: TrustRecord) throws -> TrustRecord {
+        if let existing = records[record.id], existing.isRevoked, !record.isRevoked {
+            throw TrustStoreError.revokedRecordCannotBeReactivated
         }
-        records[sanitized.id] = sanitized
+
+        // Pairing creates a fresh input record, but an already active full
+        // public key must retain its canonical record ID. This prevents a
+        // second active record from being created for the same identity.
+        let activeMatches = Self.recordsByNewestFirst(
+            records(matchingPublicKeyHex: record.peer.publicKeyHex).filter(\.isActive)
+        )
+        let canonicalId = activeMatches.first?.id ?? record.id
+        var stored = TrustRecord(
+            id: canonicalId,
+            peer: record.peer,
+            pairedAt: record.pairedAt,
+            lastSeenAt: record.lastSeenAt,
+            isRevoked: record.isRevoked,
+            revokedAt: record.revokedAt,
+            authorizedCapabilities: record.authorizedCapabilities,
+            preSharedKeyHex: record.preSharedKeyHex
+        )
+
+        if let pskHex = stored.preSharedKeyHex,
+           let pskData = Data(hexString: pskHex), pskData.count == 32 {
+            try savePreSharedKey(SymmetricKey(data: pskData), forPeerId: stored.id)
+            stored.preSharedKeyHex = nil
+        }
+        records[stored.id] = stored
+
+        // Preserve legacy duplicate records and their history, but ensure only
+        // the canonical full-key record can remain active or authorize calls.
+        let supersededAt = Date()
+        for duplicate in records(matchingPublicKeyHex: stored.peer.publicKeyHex)
+        where duplicate.id != stored.id && duplicate.isActive {
+            var updated = duplicate
+            updated.markSuperseded(by: stored.id, at: supersededAt)
+            records[updated.id] = updated
+        }
+
         try saveToKeychain()
+        return stored
     }
 
     /// Retrieves a trust record by the peer's record ID.
@@ -94,13 +184,19 @@ public actor TrustStore {
 
     /// Retrieves a trust record by the peer's public key hex.
     public func getRecord(publicKeyHex: String) -> TrustRecord? {
-        records.values.first { $0.peer.publicKeyHex.lowercased() == publicKeyHex.lowercased() }
+        let matches = records(matchingPublicKeyHex: publicKeyHex)
+        if let active = Self.recordsByNewestFirst(matches.filter(\.isActive)).first {
+            return active
+        }
+        // Keeping a revoked match observable produces an explicit revoked
+        // rejection, never a fallback based on names or fingerprint prefixes.
+        return Self.recordsByNewestFirst(matches.filter(\.isRevoked)).first
     }
 
     /// Verifies if a given device public key is trusted and not revoked.
     public func isDeviceTrusted(publicKeyHex: String) -> Bool {
         guard let record = getRecord(publicKeyHex: publicKeyHex) else { return false }
-        return !record.isRevoked
+        return record.isActive
     }
 
     /// Marks a trusted device as revoked, preventing future command authorization.
@@ -108,8 +204,10 @@ public actor TrustStore {
         guard var record = records[id] else { return }
         record.revoke()
         records[id] = record
-        deletePreSharedKey(forPeerId: id)
         try saveToKeychain()
+        // Once revocation is durable, discard its PSK. A deletion failure can
+        // never leave the device authorized.
+        deletePreSharedKey(forPeerId: id)
     }
 
     /// Completely removes a device record from the trust store.
@@ -121,7 +219,7 @@ public actor TrustStore {
 
     /// Updates the last seen timestamp of an active peer connection.
     public func updateLastSeen(id: UUID, date: Date = Date()) throws {
-        guard var record = records[id] else { return }
+        guard var record = records[id], record.isActive else { return }
         record.lastSeenAt = date
         records[id] = record
         try saveToKeychain()
@@ -129,7 +227,13 @@ public actor TrustStore {
 
     /// Returns all registered trust records.
     public func allRecords() -> [TrustRecord] {
-        Array(records.values)
+        records.values.sorted {
+            let lhsRank = $0.isActive ? 0 : ($0.isRevoked ? 1 : 2)
+            let rhsRank = $1.isActive ? 0 : ($1.isRevoked ? 1 : 2)
+            if lhsRank != rhsRank { return lhsRank < rhsRank }
+            if $0.pairedAt != $1.pairedAt { return $0.pairedAt > $1.pairedAt }
+            return $0.id.uuidString < $1.id.uuidString
+        }
     }
 
     /// Removes all records (e.g. for factory reset or test isolation).

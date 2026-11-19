@@ -79,7 +79,8 @@ public struct SessionResponse: Codable, Sendable, Identifiable, Equatable {
 }
 
 /// Active, verified cryptographic session state bound to a single connection lifetime.
-/// Holds fresh directional symmetric keys, deterministic nonce salts, and bounded expiration.
+/// Holds fresh directional symmetric keys, deterministic nonce salts, bounded expiration,
+/// and an isolated, session-scoped sequence counter for anti-replay verification.
 public struct EstablishedSession: Sendable {
     public let sessionId: UUID
     public let peer: DeviceIdentity
@@ -89,6 +90,7 @@ public struct EstablishedSession: Sendable {
     public let hostToClientNonceSalt: Data // 4 bytes
     public let establishedAt: Date
     public let expiresAt: Date
+    public let incomingSequenceCounter: SequenceCounter
 
     public init(
         sessionId: UUID,
@@ -98,7 +100,8 @@ public struct EstablishedSession: Sendable {
         clientToHostNonceSalt: Data,
         hostToClientNonceSalt: Data,
         establishedAt: Date = Date(),
-        lifetimeSeconds: TimeInterval = 300.0 // 5 minute maximum per session
+        lifetimeSeconds: TimeInterval = 300.0, // 5 minute maximum per session
+        incomingSequenceCounter: SequenceCounter = SequenceCounter()
     ) {
         self.sessionId = sessionId
         self.peer = peer
@@ -108,6 +111,7 @@ public struct EstablishedSession: Sendable {
         self.hostToClientNonceSalt = hostToClientNonceSalt
         self.establishedAt = establishedAt
         self.expiresAt = establishedAt.addingTimeInterval(lifetimeSeconds)
+        self.incomingSequenceCounter = incomingSequenceCounter
     }
 
     public func isExpired(at date: Date = Date()) -> Bool {

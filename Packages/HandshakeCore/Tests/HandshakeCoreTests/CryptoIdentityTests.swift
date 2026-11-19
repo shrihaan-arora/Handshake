@@ -256,4 +256,77 @@ final class CryptoIdentityTests: XCTestCase {
         let removedRecord = await reloadedStore.getRecord(id: record.id)
         XCTAssertNil(removedRecord)
     }
+
+    func testTrustStoreSelectsActiveRecordOverHistoricalRevocations() async throws {
+        let account = "test.truststore.identity-dedup.\(UUID().uuidString)"
+        let store = TrustStore(keychain: testKeychain, storageAccount: account)
+
+        let peer = DeviceIdentity(
+            id: UUID(),
+            publicKeyHex: "04bbccddeeff00112233445566778899aabbccddeeff00112233445566778899aa",
+            displayName: "Trusted iPhone",
+            deviceType: .iPhone,
+            modelIdentifier: "iPhone17,5",
+            systemVersion: "iOS 18.0"
+        )
+
+        let historical = TrustRecord(peer: peer, authorizedCapabilities: [.sleep])
+        try await store.addOrUpdate(historical)
+        try await store.revoke(id: historical.id)
+
+        // A new bilateral pairing may create a new active record, while the
+        // revoked historical record remains permanently revoked.
+        let fresh = TrustRecord(peer: peer, authorizedCapabilities: [.sleep])
+        let active = try await store.addOrUpdate(fresh)
+        XCTAssertNotEqual(active.id, historical.id)
+        let historicalAfterRepair = await store.getRecord(id: historical.id)
+        let selectedActive = await store.getRecord(publicKeyHex: peer.publicKeyHex)
+        let isTrusted = await store.isDeviceTrusted(publicKeyHex: peer.publicKeyHex)
+        XCTAssertTrue(historicalAfterRepair?.isRevoked ?? false)
+        XCTAssertEqual(selectedActive?.id, active.id)
+        XCTAssertTrue(isTrusted)
+
+        // A second successful pair for the same active public key updates the
+        // canonical record instead of adding a second active identity.
+        let refreshed = try await store.addOrUpdate(TrustRecord(peer: peer, authorizedCapabilities: [.sleep]))
+        XCTAssertEqual(refreshed.id, active.id)
+        let matching = await store.allRecords().filter { $0.peer.publicKeyHex == peer.publicKeyHex }
+        XCTAssertEqual(matching.filter(\.isActive).count, 1)
+        XCTAssertEqual(matching.filter(\.isRevoked).count, 1)
+
+        try await store.revoke(id: active.id)
+        let trustedAfterRevoke = await store.isDeviceTrusted(publicKeyHex: peer.publicKeyHex)
+        let selectedAfterRevoke = await store.getRecord(publicKeyHex: peer.publicKeyHex)
+        XCTAssertFalse(trustedAfterRevoke)
+        XCTAssertTrue(selectedAfterRevoke?.isRevoked ?? false)
+        try await store.removeAll()
+    }
+
+    func testTrustStoreMigratesLegacyDuplicateActiveRecordsWithoutRevokingHistory() async throws {
+        let account = "test.truststore.legacy-dedup.\(UUID().uuidString)"
+        let peer = DeviceIdentity(
+            id: UUID(),
+            publicKeyHex: "04ccddee00112233445566778899aabbccddeeff00112233445566778899aabb",
+            displayName: "Legacy iPhone",
+            deviceType: .iPhone,
+            modelIdentifier: "iPhone17,5",
+            systemVersion: "iOS 18.0"
+        )
+        let earlier = TrustRecord(peer: peer, pairedAt: Date(timeIntervalSince1970: 10))
+        let later = TrustRecord(peer: peer, pairedAt: Date(timeIntervalSince1970: 20))
+        try testKeychain.save(data: try JSONEncoder().encode([earlier, later]), forAccount: account)
+
+        let store = TrustStore(keychain: testKeychain, storageAccount: account)
+        let records = await store.allRecords()
+        let selected = await store.getRecord(publicKeyHex: peer.publicKeyHex)
+
+        XCTAssertEqual(records.filter(\.isActive).count, 1)
+        XCTAssertEqual(selected?.id, later.id)
+        let migratedEarlier = records.first { $0.id == earlier.id }
+        XCTAssertTrue(migratedEarlier?.isSuperseded ?? false)
+        XCTAssertFalse(migratedEarlier?.isRevoked ?? true)
+        XCTAssertEqual(migratedEarlier?.supersededByRecordId, later.id)
+
+        try await store.removeAll()
+    }
 }

@@ -6,6 +6,17 @@ public struct CommandAcknowledgment: Codable, Sendable, Equatable, Identifiable 
     public enum ExecutionStatus: Codable, Sendable, Equatable {
         /// Packet received, authenticated, and scheduled for execution.
         case received
+        /// The peer identity and signature were verified.
+        case authenticated
+        /// The trusted peer is permitted to invoke this command.
+        case authorized
+        /// The command was durably accepted. For Sleep Mac this does not claim the
+        /// operating system has entered sleep.
+        case accepted
+        /// The host successfully submitted the request to the operating system.
+        case sleepRequestIssued
+        /// The host independently observed that the system entered sleep.
+        case physicalSleepObserved
         /// Action successfully invoked on the host operating system.
         case executed
         /// Execution failed due to a system or permission error.

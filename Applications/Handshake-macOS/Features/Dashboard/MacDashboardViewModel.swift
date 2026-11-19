@@ -39,6 +39,7 @@ public final class MacDashboardViewModel: ObservableObject {
     private var hostIdentity: CryptoIdentity?
     private let trustStore: TrustStore
     private var server: HandshakeServer?
+    private var bleHost: BLEPeripheralHost?
     private var activeHostPairingSession: HostPairingSession? = nil
     private let sleepEngine = MacSleepEngine()
 
@@ -143,26 +144,50 @@ public final class MacDashboardViewModel: ObservableObject {
         )
         self.server = newServer
 
+        let newBleHost = BLEPeripheralHost(
+            hostIdentity: identity,
+            trustStore: trustStore,
+            sleepEngine: sleepEngine,
+            commandLogRepository: commandLogRepository,
+            pairingEventRepository: pairingEventRepository,
+            deviceSessionRepository: deviceSessionRepository,
+            executionHandler: { [weak self] message, peer in
+                guard let self = self else { return .rejected("Mac host unavailable") }
+                let status = await self.handleIncomingCommand(message, from: peer)
+                Task { @MainActor in
+                    self.refreshCommandLogs()
+                }
+                return status
+            }
+        )
+        self.bleHost = newBleHost
+
         Task {
+            newBleHost.start()
             do {
                 try await newServer.start()
                 self.connectionState = .discovering
-                self.recentAuditEvents.insert("Local Bonjour listener active on TCP 5894 (_handshake._tcp)", at: 0)
+                self.recentAuditEvents.insert("Dual transport active: Bonjour TCP 5894 & CoreBluetooth Peripheral (\(identity.identity.displayName))", at: 0)
             } catch {
                 self.connectionState = .failed(reason: error.localizedDescription)
-                self.recentAuditEvents.insert("Failed to start TCP listener: \(error.localizedDescription)", at: 0)
+                self.recentAuditEvents.insert("TCP listener failed: \(error.localizedDescription) (Bluetooth LE active)", at: 0)
             }
         }
     }
 
     public func stopServer() {
-        guard let activeServer = server else { return }
-        Task {
-            await activeServer.stop()
+        if let activeServer = server {
+            Task {
+                await activeServer.stop()
+            }
+            self.server = nil
         }
-        self.server = nil
+        if let activeBle = bleHost {
+            activeBle.stop()
+            self.bleHost = nil
+        }
         self.connectionState = .disconnected
-        self.recentAuditEvents.insert("Local listener stopped", at: 0)
+        self.recentAuditEvents.insert("Local listener and Bluetooth peripheral stopped", at: 0)
     }
 
     public func toggleAvailability() {
@@ -194,7 +219,9 @@ public final class MacDashboardViewModel: ObservableObject {
                 return .failed("System sleep not supported on this Mac")
             }
             recentAuditEvents.insert("[\(timeStr)] Sleep prepared: signing acknowledgment and flushing transport", at: 0)
-            return .executed
+            // The transport acknowledgement is sent before the system is asked
+            // to sleep, so it must report acceptance rather than a false success.
+            return .accepted
 
         case .ping:
             recentAuditEvents.insert("[\(timeStr)] Authenticated diagnostics ping from '\(peer.displayName)' (#\(shortId))", at: 0)
@@ -231,19 +258,23 @@ public final class MacDashboardViewModel: ObservableObject {
             result: "advertising"
         ))
 
-        Task {
-            await self.server?.setActivePairingSession(hostSession) { [weak self] client, sasCode in
-                guard let self = self else { return false }
-                return await withCheckedContinuation { continuation in
-                    Task { @MainActor in
-                        self.pairingDecisionContinuation = continuation
-                        self.pairingState = .awaitingApproval(client: client, sasCode: sasCode)
-                        self.recentAuditEvents.insert("Bilateral pairing requested by '\(client.displayName)'. Awaiting verification.", at: 0)
-                    }
+        let approvalHandler: HandshakeServer.PairingApprovalHandler = { [weak self] client, sasCode in
+            guard let self = self else { return false }
+            return await withCheckedContinuation { continuation in
+                Task { @MainActor in
+                    self.pairingDecisionContinuation = continuation
+                    self.pairingState = .awaitingApproval(client: client, sasCode: sasCode)
+                    self.recentAuditEvents.insert("Bilateral pairing requested by '\(client.displayName)'. Awaiting verification.", at: 0)
                 }
             }
         }
+
+        Task {
+            await self.server?.setActivePairingSession(hostSession, approvalHandler: approvalHandler)
+        }
+        self.bleHost?.setActivePairingSession(hostSession, approvalHandler: approvalHandler)
         recentAuditEvents.insert("Single-use pairing invitation generated (expires in 120s) with host \(preferredHost)", at: 0)
+        recentAuditEvents.insert("Bluetooth LE advertising ready as a QR-initiated pairing fallback: '\(host.identity.displayName)'", at: 0)
     }
 
     public func approvePairing() {
@@ -300,6 +331,7 @@ public final class MacDashboardViewModel: ObservableObject {
         Task {
             await self.server?.setActivePairingSession(nil)
         }
+        self.bleHost?.setActivePairingSession(nil)
         self.activeHostPairingSession = nil
         self.activeInvitation = nil
         self.pairingState = .idle
